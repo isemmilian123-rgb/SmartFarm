@@ -1,10 +1,7 @@
-```python
 from flask import Flask, render_template_string, request, jsonify
-from datetime import datetime
 
 app = Flask(__name__)
 
-# Valores iniciales de los sensores
 datos = {
     "temperatura": 0,
     "humedad": 0,
@@ -19,7 +16,6 @@ HTML = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Smart Farm</title>
 
     <style>
@@ -42,7 +38,6 @@ HTML = """
 
         header h1 {
             margin: 0;
-            font-size: 30px;
         }
 
         header p {
@@ -61,11 +56,9 @@ HTML = """
             padding: 20px;
             border-radius: 15px;
             margin-bottom: 20px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
 
         .tarjeta h2 {
-            margin-top: 0;
             color: #81c784;
         }
 
@@ -82,12 +75,8 @@ HTML = """
             text-align: center;
         }
 
-        .sensor .icono {
+        .icono {
             font-size: 35px;
-        }
-
-        .sensor h3 {
-            margin: 10px 0;
         }
 
         .valor {
@@ -116,16 +105,8 @@ HTML = """
             cursor: pointer;
         }
 
-        button:hover {
-            background: #388e3c;
-        }
-
         .boton-apagar {
             background: #d32f2f;
-        }
-
-        .boton-apagar:hover {
-            background: #b71c1c;
         }
 
         .estado {
@@ -166,13 +147,6 @@ HTML = """
             text-align: center;
             color: #aaa;
             font-size: 14px;
-            margin-top: 10px;
-        }
-
-        footer {
-            text-align: center;
-            padding: 20px;
-            color: #888;
         }
     </style>
 </head>
@@ -186,10 +160,7 @@ HTML = """
 
 <div class="contenedor">
 
-    <!-- SENSORES -->
-
     <div class="tarjeta">
-
         <h2>📊 Monitoreo del cultivo</h2>
 
         <div class="sensores">
@@ -215,13 +186,10 @@ HTML = """
         </div>
 
         <div class="actualizacion">
-            Última actualización: <span id="actualizacion">Esperando datos...</span>
+            Última actualización:
+            <span id="actualizacion">Esperando datos...</span>
         </div>
-
     </div>
-
-
-    <!-- RIEGO -->
 
     <div class="tarjeta">
 
@@ -237,9 +205,6 @@ HTML = """
 
     </div>
 
-
-    <!-- ALERTAS -->
-
     <div class="tarjeta">
 
         <h2>🔔 Estado del sistema</h2>
@@ -249,9 +214,6 @@ HTML = """
         </div>
 
     </div>
-
-
-    <!-- CÁMARA DEL TELÉFONO -->
 
     <div class="tarjeta">
 
@@ -277,37 +239,11 @@ HTML = """
 
     </div>
 
-
-    <!-- VISTA -->
-
-    <div class="tarjeta">
-
-        <h2>💻 Vista de la cámara</h2>
-
-        <video id="remoteVideo" autoplay playsinline></video>
-
-        <p style="text-align:center;">
-            Vista preparada para la comunicación del sistema.
-        </p>
-
-    </div>
-
 </div>
-
-
-<footer>
-    🌱 Smart Farm System © 2026
-</footer>
-
 
 <script>
 
 let stream = null;
-
-
-// ============================
-// CÁMARA
-// ============================
 
 async function iniciarCamara() {
 
@@ -336,7 +272,6 @@ async function iniciarCamara() {
 
 }
 
-
 function apagarCamara() {
 
     if (stream) {
@@ -349,17 +284,12 @@ function apagarCamara() {
 
         document.getElementById("localVideo").srcObject = null;
 
-        document.getElementById("estadoCamara").innerHTML =
-            "⚫ Cámara apagada";
-
     }
 
+    document.getElementById("estadoCamara").innerHTML =
+        "⚫ Cámara apagada";
+
 }
-
-
-// ============================
-// DATOS DEL ESP32
-// ============================
 
 async function actualizarDatos() {
 
@@ -378,7 +308,6 @@ async function actualizarDatos() {
         document.getElementById("suelo").innerHTML =
             datos.suelo + " %";
 
-
         if (datos.riego) {
 
             document.getElementById("estadoRiego").className =
@@ -396,7 +325,6 @@ async function actualizarDatos() {
                 "🔴 Riego apagado";
 
         }
-
 
         document.getElementById("alerta").innerHTML =
             datos.alerta;
@@ -417,9 +345,6 @@ async function actualizarDatos() {
 
 }
 
-
-// Actualizar datos cada 3 segundos
-
 setInterval(actualizarDatos, 3000);
 
 actualizarDatos();
@@ -430,15 +355,10 @@ actualizarDatos();
 </html>
 """
 
-
 @app.route("/")
 def inicio():
     return render_template_string(HTML)
 
-
-# ============================
-# API PARA RECIBIR DATOS
-# ============================
 
 @app.route("/api/datos", methods=["GET"])
 def obtener_datos():
@@ -492,4 +412,3 @@ if __name__ == "__main__":
         port=5000,
         debug=False
     )
-```
