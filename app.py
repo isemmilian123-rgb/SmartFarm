@@ -21,8 +21,6 @@ socketio = SocketIO(
     async_mode="threading"
 )
 
-imagen_anterior = None
-
 
 # ============================================================
 # DATOS DEL SISTEMA
@@ -38,15 +36,20 @@ datos = {
     "automatico_pausado": False
 }
 
+
 orden_riego = {
     "modo": "automatico",
     "riego": False,
     "automatico_pausado": False
 }
 
+
+# ============================================================
+# DATOS DE CÁMARA
+# ============================================================
+
 salas_camara = {}
 
-# Imagen utilizada como referencia para el análisis
 imagen_anterior = None
 
 
@@ -69,7 +72,6 @@ def generar_codigo():
 
 HTML = """
 <!DOCTYPE html>
-
 <html lang="es">
 
 <head>
@@ -286,25 +288,21 @@ hr {
 
 </head>
 
-
 <body>
-
 
 <header>
 
-    <h1>
-        🌱 SMART FARM SYSTEM
-    </h1>
+<h1>
+🌱 SMART FARM SYSTEM
+</h1>
 
-    <p>
-        Sistema inteligente de monitoreo agrícola
-    </p>
+<p>
+Sistema inteligente de monitoreo agrícola
+</p>
 
 </header>
 
-
 <div class="contenedor">
-
 
 <!-- ========================================================
      MONITOREO
@@ -312,94 +310,92 @@ hr {
 
 <div class="tarjeta">
 
-    <h2>
-        📊 Monitoreo del cultivo
-    </h2>
+<h2>
+📊 Monitoreo del cultivo
+</h2>
 
-    <div class="grid">
+<div class="grid">
 
+<div class="dato">
 
-        <div class="dato">
+<div class="icono">
+🌡️
+</div>
 
-            <div class="icono">
-                🌡️
-            </div>
+<div>
+Temperatura
+</div>
 
-            <div>
-                Temperatura
-            </div>
+<div
+    class="valor"
+    id="temperatura"
+>
+-- °C
+</div>
 
-            <div
-                class="valor"
-                id="temperatura"
-            >
-                -- °C
-            </div>
-
-        </div>
-
-
-        <div class="dato">
-
-            <div class="icono">
-                💧
-            </div>
-
-            <div>
-                Humedad ambiente
-            </div>
-
-            <div
-                class="valor"
-                id="humedad"
-            >
-                -- %
-            </div>
-
-        </div>
+</div>
 
 
-        <div class="dato">
+<div class="dato">
 
-            <div class="icono">
-                🌱
-            </div>
+<div class="icono">
+💧
+</div>
 
-            <div>
-                Humedad del suelo
-            </div>
+<div>
+Humedad ambiente
+</div>
 
-            <div
-                class="valor"
-                id="suelo"
-            >
-                -- %
-            </div>
+<div
+    class="valor"
+    id="humedad"
+>
+-- %
+</div>
 
-        </div>
-
-
-        <div class="dato">
-
-            <div class="icono">
-                🚰
-            </div>
-
-            <div>
-                Bomba
-            </div>
-
-            <div
-                class="valor"
-                id="riego"
-            >
-                APAGADA
-            </div>
-
-        </div>
+</div>
 
 
-    </div>
+<div class="dato">
+
+<div class="icono">
+🌱
+</div>
+
+<div>
+Humedad del suelo
+</div>
+
+<div
+    class="valor"
+    id="suelo"
+>
+-- %
+</div>
+
+</div>
+
+
+<div class="dato">
+
+<div class="icono">
+🚰
+</div>
+
+<div>
+Bomba
+</div>
+
+<div
+    class="valor"
+    id="riego"
+>
+APAGADA
+</div>
+
+</div>
+
+</div>
 
 </div>
 
@@ -410,211 +406,185 @@ hr {
 
 <div class="tarjeta">
 
-    <h2>
-        📷 Cámara del cultivo
-    </h2>
+<h2>
+📷 Cámara del cultivo
+</h2>
 
-    <div class="camara-contenedor">
+<div class="camara-contenedor">
 
+<video
+    id="videoCamara"
+    class="video"
+    autoplay
+    playsinline
+></video>
 
-        <video
-            id="videoCamara"
-            class="video"
-            autoplay
-            playsinline
-        ></video>
+<div
+    class="estado"
+    id="estadoCamara"
+>
+📷 Cámara apagada
+</div>
 
+<div class="botones">
 
-        <div
-            class="estado"
-            id="estadoCamara"
-        >
-            📷 Cámara apagada
-        </div>
+<button
+    class="btn-camara"
+    onclick="activarCamara()"
+>
+📷 Activar cámara
+</button>
 
+<button
+    class="btn-detener-camara"
+    onclick="detenerCamara()"
+>
+⏹️ Detener cámara
+</button>
 
-        <div class="botones">
+<button
+    class="btn-cambiar-camara"
+    onclick="cambiarCamara()"
+>
+🔄 Cambiar cámara
+</button>
 
+</div>
 
-            <button
-                class="btn-camara"
-                onclick="activarCamara()"
-            >
-                📷 Activar cámara
-            </button>
-
-
-            <button
-                class="btn-detener-camara"
-                onclick="detenerCamara()"
-            >
-                ⏹️ Detener cámara
-            </button>
-
-
-            <button
-                class="btn-cambiar-camara"
-                onclick="cambiarCamara()"
-            >
-                🔄 Cambiar cámara
-            </button>
-
-
-        </div>
-
-    </div>
+</div>
 
 </div>
 
 
 <!-- ========================================================
-     TRANSMISIÓN DEL TELÉFONO
+     CÁMARA DEL TELÉFONO
      ======================================================== -->
 
 <div class="tarjeta">
 
-    <h2>
-        📡 Cámara del cultivo en vivo
-    </h2>
+<h2>
+📡 Cámara del cultivo en vivo
+</h2>
+
+<div class="camara-contenedor">
+
+<h3>
+📱 Teléfono: transmitir cámara
+</h3>
+
+<button
+    class="btn-camara"
+    onclick="iniciarTransmision()"
+>
+📡 Transmitir cámara
+</button>
+
+<div
+    id="codigoMostrar"
+    style="display:none;"
+>
+
+<p>
+Código para conectar la computadora:
+</p>
+
+<div
+    class="codigo-generado"
+    id="codigoGenerado"
+>
+------
+</div>
+
+<p class="info">
+Mantén esta página abierta en el teléfono.
+</p>
+
+</div>
+
+<hr>
+
+<h3>
+💻 Computadora: ver cámara
+</h3>
+
+<input
+    id="codigoSala"
+    class="codigo"
+    type="text"
+    maxlength="6"
+    placeholder="Código de cámara"
+>
+
+<div class="botones">
+
+<button
+    class="btn-cambiar-camara"
+    onclick="verCamara()"
+>
+💻 Ver cámara
+</button>
+
+<button
+    class="btn-detener-camara"
+    onclick="detenerVideoRemoto()"
+>
+⏹️ Desconectar
+</button>
+
+</div>
+
+<video
+    id="videoRemoto"
+    class="video"
+    autoplay
+    playsinline
+    muted
+></video>
+
+<div
+    class="estado"
+    id="estadoTransmision"
+>
+📡 Cámara sin conexión
+</div>
+
+</div>
+
+</div>
 
 
-    <div class="camara-contenedor">
+<!-- ========================================================
+     DETECCIÓN DE ANOMALÍAS
+     ======================================================== -->
 
+<div class="tarjeta">
 
-        <h3>
-            📱 Teléfono: transmitir cámara
-        </h3>
+<h2>
+🔍 Detección de anomalías
+</h2>
 
+<p class="info">
+El sistema compara imágenes del cultivo
+para detectar cambios visuales.
+</p>
 
-        <button
-            class="btn-camara"
-            onclick="iniciarTransmision()"
-        >
-            📡 Transmitir cámara
-        </button>
+<div class="botones">
 
+<button
+    class="btn-analizar"
+    onclick="analizarCultivo()"
+>
+🔍 Analizar cultivo
+</button>
 
-        <div
-            id="codigoMostrar"
-            style="display:none;"
-        >
+</div>
 
-            <p>
-                Código para conectar la computadora:
-            </p>
-
-
-            <div
-                class="codigo-generado"
-                id="codigoGenerado"
-            >
-                ------
-            </div>
-
-
-            <p class="info">
-                Mantén esta página abierta en el teléfono.
-            </p>
-
-        </div>
-
-
-        <hr>
-
-
-        <h3>
-            💻 Computadora: ver cámara
-        </h3>
-
-
-        <input
-            id="codigoSala"
-            class="codigo"
-            type="text"
-            maxlength="6"
-            placeholder="Código de cámara"
-        >
-
-
-        <div class="botones">
-
-
-            <button
-                class="btn-cambiar-camara"
-                onclick="verCamara()"
-            >
-                💻 Ver cámara
-            </button>
-
-
-            <button
-                class="btn-detener-camara"
-                onclick="detenerVideoRemoto()"
-            >
-                ⏹️ Desconectar
-            </button>
-
-
-        </div>
-
-
-        <video
-            id="videoRemoto"
-            class="video"
-            autoplay
-            playsinline
-            muted
-        ></video>
-
-
-        <div
-            class="estado"
-            id="estadoTransmision"
-        >
-            📡 Cámara sin conexión
-        </div>
-
-
-        <!-- ==================================================
-             DETECCIÓN DE ANOMALÍAS
-             ================================================== -->
-
-        <div class="tarjeta">
-
-            <h2>
-                🔍 Detección de anomalías
-            </h2>
-
-
-            <p class="info">
-                El sistema compara imágenes del cultivo
-                para detectar cambios visuales.
-            </p>
-
-
-            <div class="botones">
-
-                <button
-                    class="btn-analizar"
-                    onclick="analizarCultivo()"
-                >
-                    🔍 Analizar cultivo
-                </button>
-
-            </div>
-
-
-            <div
-                class="estado"
-                id="resultadoAnalisis"
-            >
-                🔍 Esperando análisis...
-            </div>
-
-        </div>
-
-
-    </div>
+<div
+    class="estado"
+    id="resultadoAnalisis"
+>
+🔍 Esperando análisis...
+</div>
 
 </div>
 
@@ -625,92 +595,81 @@ hr {
 
 <div class="tarjeta">
 
-    <h2>
-        🚰 Control del riego
-    </h2>
+<h2>
+🚰 Control del riego
+</h2>
 
+<div class="botones">
 
-    <div class="botones">
+<button
+    class="btn-auto"
+    onclick="cambiarModo('automatico')"
+>
+🤖 Automático
+</button>
 
+<button
+    class="btn-manual"
+    onclick="cambiarModo('manual')"
+>
+👨‍🌾 Manual
+</button>
 
-        <button
-            class="btn-auto"
-            onclick="cambiarModo('automatico')"
-        >
-            🤖 Automático
-        </button>
+<button
+    class="btn-regar"
+    onclick="controlarRiego('encender')"
+>
+💧 Regar
+</button>
 
+<button
+    class="btn-detener"
+    onclick="controlarRiego('apagar')"
+>
+🛑 Detener
+</button>
 
-        <button
-            class="btn-manual"
-            onclick="cambiarModo('manual')"
-        >
-            👨‍🌾 Manual
-        </button>
+<button
+    class="btn-reactivar"
+    onclick="reactivarAutomatico()"
+>
+▶️ Reactivar automático
+</button>
 
+</div>
 
-        <button
-            class="btn-regar"
-            onclick="controlarRiego('encender')"
-        >
-            💧 Regar
-        </button>
-
-
-        <button
-            class="btn-detener"
-            onclick="controlarRiego('apagar')"
-        >
-            🛑 Detener
-        </button>
-
-
-        <button
-            class="btn-reactivar"
-            onclick="reactivarAutomatico()"
-        >
-            ▶️ Reactivar automático
-        </button>
-
-
-    </div>
-
-
-    <div
-        class="estado"
-        id="estado"
-    >
-        Cargando estado...
-    </div>
+<div
+    class="estado"
+    id="estado"
+>
+Cargando estado...
+</div>
 
 </div>
 
 
 <!-- ========================================================
-     ESTADO DEL SISTEMA
+     ESTADO
      ======================================================== -->
 
 <div class="tarjeta">
 
-    <h2>
-        📢 Estado del sistema
-    </h2>
+<h2>
+📢 Estado del sistema
+</h2>
 
-
-    <div
-        class="estado"
-        id="alerta"
-    >
-        Esperando información...
-    </div>
-
-
-    <p class="info">
-        Los datos se actualizan automáticamente.
-    </p>
-
+<div
+    class="estado"
+    id="alerta"
+>
+Esperando información...
 </div>
 
+<p class="info">
+Los datos se actualizan automáticamente.
+</p>
+
+</div>
 
 </div>
 
@@ -725,24 +684,19 @@ const socket = io();
 
 
 // ============================================================
-// VARIABLES DE CÁMARA
+// VARIABLES
 // ============================================================
 
 let flujoCamara = null;
-
 let camaraActual = "environment";
-
 let peerConnection = null;
-
 let salaActual = null;
-
 let soyTransmisor = false;
-
 let candidatosPendientes = [];
 
 
 // ============================================================
-// CONFIGURACIÓN WEBRTC
+// WEBRTC
 // ============================================================
 
 const configuracionRTC = {
@@ -780,6 +734,7 @@ async function activarCamara() {
             );
 
             return;
+
         }
 
 
@@ -788,7 +743,9 @@ async function activarCamara() {
             flujoCamara
                 .getTracks()
                 .forEach(
-                    track => track.stop()
+                    function(track) {
+                        track.stop();
+                    }
                 );
 
         }
@@ -814,12 +771,8 @@ async function activarCamara() {
             );
 
 
-        video.srcObject =
-            flujoCamara;
-
-
-        video.style.display =
-            "block";
+        video.srcObject = flujoCamara;
+        video.style.display = "block";
 
 
         document.getElementById(
@@ -843,8 +796,7 @@ async function activarCamara() {
 
 
         alert(
-            "No se pudo acceder a la cámara. " +
-            "Verifica los permisos."
+            "No se pudo acceder a la cámara. Verifica los permisos."
         );
 
     }
@@ -863,7 +815,9 @@ function detenerCamara() {
         flujoCamara
             .getTracks()
             .forEach(
-                track => track.stop()
+                function(track) {
+                    track.stop();
+                }
             );
 
         flujoCamara = null;
@@ -878,7 +832,6 @@ function detenerCamara() {
 
 
     video.srcObject = null;
-
     video.style.display = "none";
 
 
@@ -958,19 +911,18 @@ function crearPeerConnection() {
                 video.srcObject =
                     event.streams[0];
 
-
                 video.style.display =
                     "block";
 
 
-                video.play()
-                    .catch(
-                        error =>
-                            console.log(
-                                "Autoplay:",
-                                error
-                            )
-                    );
+                video.play().catch(
+                    function(error) {
+                        console.log(
+                            "Autoplay:",
+                            error
+                        );
+                    }
+                );
 
 
                 document.getElementById(
@@ -985,6 +937,11 @@ function crearPeerConnection() {
 
     peerConnection.onconnectionstatechange =
         function() {
+
+            if (!peerConnection) {
+                return;
+            }
+
 
             if (
                 peerConnection.connectionState ===
@@ -1042,8 +999,7 @@ async function iniciarTransmision() {
 
         if (!flujoCamara) {
 
-            camaraActual =
-                "environment";
+            camaraActual = "environment";
 
             await activarCamara();
 
@@ -1068,10 +1024,7 @@ async function iniciarTransmision() {
             await respuesta.json();
 
 
-        if (
-            resultado.estado !==
-            "ok"
-        ) {
+        if (resultado.estado !== "ok") {
 
             alert(
                 "No se pudo crear la cámara."
@@ -1087,7 +1040,6 @@ async function iniciarTransmision() {
 
 
         soyTransmisor = true;
-
         candidatosPendientes = [];
 
 
@@ -1168,17 +1120,13 @@ async function verCamara() {
         if (peerConnection) {
 
             peerConnection.close();
-
             peerConnection = null;
 
         }
 
 
-        salaActual =
-            codigo;
-
+        salaActual = codigo;
         soyTransmisor = false;
-
         candidatosPendientes = [];
 
 
@@ -1241,11 +1189,14 @@ socket.on(
             flujoCamara
                 .getTracks()
                 .forEach(
-                    track =>
+                    function(track) {
+
                         peerConnection.addTrack(
                             track,
                             flujoCamara
-                        )
+                        );
+
+                    }
                 );
 
 
@@ -1378,6 +1329,11 @@ socket.on(
 
         try {
 
+            if (!peerConnection) {
+                return;
+            }
+
+
             await peerConnection.setRemoteDescription(
                 new RTCSessionDescription(
                     data.respuesta
@@ -1498,7 +1454,6 @@ function detenerVideoRemoto() {
     if (peerConnection) {
 
         peerConnection.close();
-
         peerConnection = null;
 
     }
@@ -1511,12 +1466,10 @@ function detenerVideoRemoto() {
 
 
     video.srcObject = null;
-
     video.style.display = "none";
 
 
     candidatosPendientes = [];
-
     salaActual = null;
 
 
@@ -1574,7 +1527,6 @@ async function analizarCultivo() {
 
         canvas.width =
             video.videoWidth;
-
 
         canvas.height =
             video.videoHeight;
@@ -1673,8 +1625,7 @@ async function actualizarDatos() {
         ).innerText =
             Number(
                 datosServidor.temperatura
-            ).toFixed(1) +
-            " °C";
+            ).toFixed(1) + " °C";
 
 
         document.getElementById(
@@ -1682,15 +1633,13 @@ async function actualizarDatos() {
         ).innerText =
             Number(
                 datosServidor.humedad
-            ).toFixed(1) +
-            " %";
+            ).toFixed(1) + " %";
 
 
         document.getElementById(
             "suelo"
         ).innerText =
-            datosServidor.suelo +
-            " %";
+            datosServidor.suelo + " %";
 
 
         const bomba =
@@ -1851,16 +1800,9 @@ async function controlarRiego(accion) {
             await respuesta.json();
 
 
-        if (
-            resultado.estado ===
-            "error"
-        ) {
-
-            alert(
-                resultado.mensaje
-            );
-
-        }
+        alert(
+            resultado.mensaje
+        );
 
 
         actualizarDatos();
@@ -1940,7 +1882,6 @@ setInterval(
 </script>
 
 </body>
-
 </html>
 """
 
@@ -1955,40 +1896,35 @@ def index():
 
 
 # ============================================================
-# DATOS
+# API DE DATOS
 # ============================================================
 
-@app.route(
-    "/api/datos",
-    methods=["GET"]
-)
+@app.route("/api/datos", methods=["GET"])
 def obtener_datos():
-
     return jsonify(datos)
 
 
 # ============================================================
-# CONTROL DE RIEGO
+# API DE RIEGO
 # ============================================================
 
-@app.route(
-    "/api/riego",
-    methods=["POST"]
-)
+@app.route("/api/riego", methods=["POST"])
 def gestionar_riego():
 
     peticion = request.get_json() or {}
-
     accion = peticion.get("accion")
 
 
+    # --------------------------------------------------------
+    # CAMBIAR MODO
+    # --------------------------------------------------------
+
     if accion == "modo":
 
-        nuevo_modo =
-            peticion.get(
-                "modo",
-                "automatico"
-            )
+        nuevo_modo = peticion.get(
+            "modo",
+            "automatico"
+        )
 
 
         if nuevo_modo not in [
@@ -2002,34 +1938,23 @@ def gestionar_riego():
             }), 400
 
 
-        datos["modo"] =
-            nuevo_modo
-
-
-        orden_riego["modo"] =
-            nuevo_modo
+        datos["modo"] = nuevo_modo
+        orden_riego["modo"] = nuevo_modo
 
 
         if nuevo_modo == "automatico":
 
-            datos["automatico_pausado"] =
-                False
+            datos["automatico_pausado"] = False
+            orden_riego["automatico_pausado"] = False
 
-            orden_riego[
-                "automatico_pausado"
-            ] = False
-
-            mensaje =
-                "Modo automático activado."
+            mensaje = "Modo automático activado."
 
         else:
 
-            mensaje =
-                "Modo manual activado."
+            mensaje = "Modo manual activado."
 
 
-        datos["alerta"] =
-            mensaje
+        datos["alerta"] = mensaje
 
 
         return jsonify({
@@ -2038,38 +1963,32 @@ def gestionar_riego():
         })
 
 
-    elif accion == "encender":
+    # --------------------------------------------------------
+    # ENCENDER RIEGO
+    # --------------------------------------------------------
 
-        datos["riego"] =
-            True
+    if accion == "encender":
 
-
-        orden_riego["riego"] =
-            True
+        datos["riego"] = True
+        orden_riego["riego"] = True
 
 
         if datos["modo"] == "automatico":
 
-            datos[
-                "automatico_pausado"
-            ] = True
+            datos["automatico_pausado"] = True
+            orden_riego["automatico_pausado"] = True
 
-            orden_riego[
-                "automatico_pausado"
-            ] = True
-
-
-            mensaje =
-                "Riego activado manualmente. Control automático pausado."
+            mensaje = (
+                "Riego activado manualmente. "
+                "Control automático pausado."
+            )
 
         else:
 
-            mensaje =
-                "Riego encendido en modo manual."
+            mensaje = "Riego encendido en modo manual."
 
 
-        datos["alerta"] =
-            mensaje
+        datos["alerta"] = mensaje
 
 
         return jsonify({
@@ -2078,38 +1997,59 @@ def gestionar_riego():
         })
 
 
-    elif accion == "apagar":
+    # --------------------------------------------------------
+    # APAGAR RIEGO
+    # --------------------------------------------------------
 
-        datos["riego"] =
-            False
+    if accion == "apagar":
 
-
-        orden_riego["riego"] =
-            False
+        datos["riego"] = False
+        orden_riego["riego"] = False
 
 
         if datos["modo"] == "automatico":
 
-            datos[
-                "automatico_pausado"
-            ] = True
+            datos["automatico_pausado"] = True
+            orden_riego["automatico_pausado"] = True
 
-            orden_riego[
-                "automatico_pausado"
-            ] = True
-
-
-            mensaje =
-                "Riego detenido manualmente. Control automático pausado."
+            mensaje = (
+                "Riego detenido manualmente. "
+                "Control automático pausado."
+            )
 
         else:
 
-            mensaje =
-                "Riego apagado en modo manual."
+            mensaje = "Riego apagado en modo manual."
 
 
-        datos["alerta"] =
-            mensaje
+        datos["alerta"] = mensaje
+
+
+        return jsonify({
+            "estado": "ok",
+            "mensaje": mensaje
+        })
+
+
+    # --------------------------------------------------------
+    # REACTIVAR AUTOMÁTICO
+    # --------------------------------------------------------
+
+    if accion == "reactivar":
+
+        datos["modo"] = "automatico"
+        datos["automatico_pausado"] = False
+
+        orden_riego["modo"] = "automatico"
+        orden_riego["automatico_pausado"] = False
+
+        datos["riego"] = False
+        orden_riego["riego"] = False
+
+
+        mensaje = "Control automático reactivado."
+
+        datos["alerta"] = mensaje
 
 
         return jsonify({
@@ -2118,47 +2058,9 @@ def gestionar_riego():
         })
 
 
-    elif accion == "reactivar":
-
-        datos["modo"] =
-            "automatico"
-
-
-        datos[
-            "automatico_pausado"
-        ] = False
-
-
-        orden_riego["modo"] =
-            "automatico"
-
-
-        orden_riego[
-            "automatico_pausado"
-        ] = False
-
-
-        datos["riego"] =
-            False
-
-
-        orden_riego["riego"] =
-            False
-
-
-        mensaje =
-            "Control automático reactivado."
-
-
-        datos["alerta"] =
-            mensaje
-
-
-        return jsonify({
-            "estado": "ok",
-            "mensaje": mensaje
-        })
-
+    # --------------------------------------------------------
+    # ACCIÓN NO VÁLIDA
+    # --------------------------------------------------------
 
     return jsonify({
         "estado": "error",
@@ -2167,41 +2069,44 @@ def gestionar_riego():
 
 
 # ============================================================
-# DATOS DESDE ESP32
+# DATOS DEL ESP32
 # ============================================================
 
-@app.route(
-    "/api/actualizar",
-    methods=["POST"]
-)
+@app.route("/api/actualizar", methods=["POST"])
 def actualizar_desde_esp32():
 
-    peticion =
-        request.get_json() or {}
+    peticion = request.get_json() or {}
 
 
-    if "temperatura" in peticion:
+    try:
 
-        datos["temperatura"] =
-            float(
+        if "temperatura" in peticion:
+
+            datos["temperatura"] = float(
                 peticion["temperatura"]
             )
 
 
-    if "humedad" in peticion:
+        if "humedad" in peticion:
 
-        datos["humedad"] =
-            float(
+            datos["humedad"] = float(
                 peticion["humedad"]
             )
 
 
-    if "suelo" in peticion:
+        if "suelo" in peticion:
 
-        datos["suelo"] =
-            int(
+            datos["suelo"] = int(
                 peticion["suelo"]
             )
+
+
+    except (TypeError, ValueError):
+
+        return jsonify({
+            "estado": "error",
+            "mensaje": "Datos de sensores no válidos."
+        }), 400
 
 
     # --------------------------------------------------------
@@ -2215,26 +2120,24 @@ def actualizar_desde_esp32():
 
         if datos["suelo"] < 30:
 
-            datos["riego"] =
-                True
+            datos["riego"] = True
+            orden_riego["riego"] = True
 
-            orden_riego["riego"] =
-                True
-
-            datos["alerta"] =
-                "Humedad baja detectada. Riego encendido automáticamente."
+            datos["alerta"] = (
+                "Humedad baja detectada. "
+                "Riego encendido automáticamente."
+            )
 
 
         elif datos["suelo"] > 70:
 
-            datos["riego"] =
-                False
+            datos["riego"] = False
+            orden_riego["riego"] = False
 
-            orden_riego["riego"] =
-                False
-
-            datos["alerta"] =
-                "Humedad adecuada. Riego apagado."
+            datos["alerta"] = (
+                "Humedad adecuada. "
+                "Riego apagado."
+            )
 
 
     return jsonify({
@@ -2247,14 +2150,10 @@ def actualizar_desde_esp32():
 # CREAR SALA DE CÁMARA
 # ============================================================
 
-@app.route(
-    "/api/camara/nueva",
-    methods=["POST"]
-)
+@app.route("/api/camara/nueva", methods=["POST"])
 def crear_sala_camara():
 
-    codigo =
-        generar_codigo()
+    codigo = generar_codigo()
 
 
     salas_camara[codigo] = {
@@ -2269,93 +2168,67 @@ def crear_sala_camara():
 
 
 # ============================================================
-# ANALIZAR IMAGEN DE CÁMARA
+# ANALIZAR IMAGEN
 # ============================================================
 
-@app.route(
-    "/api/camara/analizar",
-    methods=["POST"]
-)
+@app.route("/api/camara/analizar", methods=["POST"])
 def analizar_imagen_camara():
 
     global imagen_anterior
 
 
-    peticion =
-        request.get_json() or {}
+    peticion = request.get_json() or {}
 
-
-    imagen_b64 =
-        peticion.get(
-            "imagen",
-            ""
-        )
+    imagen_b64 = peticion.get(
+        "imagen",
+        ""
+    )
 
 
     if not imagen_b64:
 
         return jsonify({
             "estado": "error",
-            "mensaje":
-                "No se recibió ninguna imagen."
+            "mensaje": "No se recibió ninguna imagen."
         }), 400
 
 
     try:
 
-        # ----------------------------------------------------
-        # DECODIFICAR IMAGEN
-        # ----------------------------------------------------
-
         if "," in imagen_b64:
 
-            imagen_b64 =
-                imagen_b64.split(
-                    ",",
-                    1
-                )[1]
+            imagen_b64 = imagen_b64.split(
+                ",",
+                1
+            )[1]
 
 
-        datos_imagen =
-            base64.b64decode(
-                imagen_b64
-            )
+        datos_imagen = base64.b64decode(
+            imagen_b64
+        )
 
 
-        imagen_actual =
-            Image.open(
-                io.BytesIO(
-                    datos_imagen
-                )
-            ).convert("RGB")
+        imagen_actual = Image.open(
+            io.BytesIO(datos_imagen)
+        ).convert("RGB")
 
 
-        # ----------------------------------------------------
-        # REDUCIR IMAGEN
-        # ----------------------------------------------------
+        imagen_actual = imagen_actual.resize(
+            (160, 120)
+        )
 
-        imagen_actual =
-            imagen_actual.resize(
-                (160, 120)
-            )
-
-
-        # ----------------------------------------------------
-        # PRIMERA IMAGEN
-        # ----------------------------------------------------
 
         if imagen_anterior is None:
 
-            imagen_anterior =
-                imagen_actual.copy()
+            imagen_anterior = imagen_actual.copy()
+
+            mensaje = (
+                "📸 Imagen base guardada. "
+                "Realiza otro análisis para comparar."
+            )
 
 
-            mensaje =
-                "📸 Imagen base guardada. Realiza otro análisis para comparar."
-
-
-            datos["alerta"] =
-                mensaje
+            datos["alerta"] = mensaje
 
 
             return jsonify({
@@ -2365,50 +2238,31 @@ def analizar_imagen_camara():
             })
 
 
-        # ----------------------------------------------------
-        # COMPARAR IMÁGENES
-        # ----------------------------------------------------
-
-        diferencia =
-            ImageChops.difference(
-                imagen_actual,
-                imagen_anterior
-            )
+        diferencia = ImageChops.difference(
+            imagen_actual,
+            imagen_anterior
+        )
 
 
-        estadisticas =
-            ImageStat.Stat(
-                diferencia
-            )
+        estadisticas = ImageStat.Stat(
+            diferencia
+        )
 
 
-        promedio_cambio =
-            sum(
-                estadisticas.mean
-            ) / len(
-                estadisticas.mean
-            )
+        promedio_cambio = (
+            sum(estadisticas.mean)
+            / len(estadisticas.mean)
+        )
 
 
-        # Guardar imagen actual
-        # para la siguiente comparación
+        imagen_anterior = imagen_actual.copy()
 
-        imagen_anterior =
-            imagen_actual.copy()
-
-
-        # ----------------------------------------------------
-        # DETECCIÓN
-        # ----------------------------------------------------
 
         if promedio_cambio > 25:
 
-            mensaje =
-                "🚨 POSIBLE ANOMALÍA DETECTADA"
+            mensaje = "🚨 POSIBLE ANOMALÍA DETECTADA"
 
-
-            datos["alerta"] =
-                mensaje
+            datos["alerta"] = mensaje
 
 
             return jsonify({
@@ -2418,12 +2272,13 @@ def analizar_imagen_camara():
             })
 
 
-        mensaje =
-            "🟢 Cultivo estable. Sin anomalías visibles."
+        mensaje = (
+            "🟢 Cultivo estable. "
+            "Sin anomalías visibles."
+        )
 
 
-        datos["alerta"] =
-            mensaje
+        datos["alerta"] = mensaje
 
 
         return jsonify({
@@ -2443,8 +2298,7 @@ def analizar_imagen_camara():
 
         return jsonify({
             "estado": "error",
-            "mensaje":
-                "❌ Error procesando la imagen."
+            "mensaje": "❌ Error procesando la imagen."
         }), 500
 
 
@@ -2455,17 +2309,12 @@ def analizar_imagen_camara():
 @socketio.on("crear_sala")
 def al_crear_sala(data):
 
-    sala =
-        data.get(
-            "sala"
-        )
+    sala = data.get("sala")
 
 
     if sala:
 
-        join_room(
-            sala
-        )
+        join_room(sala)
 
 
 # ============================================================
@@ -2475,17 +2324,12 @@ def al_crear_sala(data):
 @socketio.on("unirse_sala")
 def al_unirse_sala(data):
 
-    sala =
-        data.get(
-            "sala"
-        )
+    sala = data.get("sala")
 
 
     if sala in salas_camara:
 
-        join_room(
-            sala
-        )
+        join_room(sala)
 
 
         emit(
@@ -2512,10 +2356,7 @@ def al_unirse_sala(data):
 @socketio.on("oferta")
 def al_recibir_oferta(data):
 
-    sala =
-        data.get(
-            "sala"
-        )
+    sala = data.get("sala")
 
 
     if sala:
@@ -2535,10 +2376,7 @@ def al_recibir_oferta(data):
 @socketio.on("respuesta")
 def al_recibir_respuesta(data):
 
-    sala =
-        data.get(
-            "sala"
-        )
+    sala = data.get("sala")
 
 
     if sala:
@@ -2558,10 +2396,7 @@ def al_recibir_respuesta(data):
 @socketio.on("candidato")
 def al_recibir_candidato(data):
 
-    sala =
-        data.get(
-            "sala"
-        )
+    sala = data.get("sala")
 
 
     if sala:
@@ -2575,7 +2410,7 @@ def al_recibir_candidato(data):
 
 
 # ============================================================
-# INICIO
+# INICIO DE LA APLICACIÓN
 # ============================================================
 
 if __name__ == "__main__":
