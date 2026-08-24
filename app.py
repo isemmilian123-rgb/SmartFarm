@@ -148,18 +148,6 @@ button {
     background: #388e3c;
 }
 
-.btn-camara {
-    background: #1565c0;
-}
-
-.btn-detener-camara {
-    background: #c62828;
-}
-
-.btn-cambiar-camara {
-    background: #6a1b9a;
-}
-
 button:hover {
     opacity: 0.85;
 }
@@ -193,34 +181,6 @@ button:hover {
     text-align: center;
     color: #bdbdbd;
     font-size: 14px;
-}
-
-/* ============================================================
-   CÁMARA
-============================================================ */
-
-.camara-contenedor {
-    width: 100%;
-    max-width: 700px;
-    margin: auto;
-    text-align: center;
-}
-
-#videoCamara {
-    width: 100%;
-    max-height: 500px;
-    object-fit: cover;
-    background: #000;
-    border-radius: 15px;
-    display: none;
-}
-
-.camara-estado {
-    margin-top: 15px;
-    padding: 12px;
-    border-radius: 10px;
-    background: #293329;
-    color: #bdbdbd;
 }
 
 </style>
@@ -308,69 +268,6 @@ APAGADA
 
 
 <!-- =====================================================
-     CÁMARA DEL TELÉFONO
-===================================================== -->
-
-<div class="tarjeta">
-
-<h2>📷 Cámara del cultivo</h2>
-
-<div class="camara-contenedor">
-
-<video
-id="videoCamara"
-autoplay
-playsinline>
-</video>
-
-<div class="camara-estado" id="estadoCamara">
-
-📷 Cámara apagada
-
-</div>
-
-<br>
-
-<div class="botones">
-
-<button
-class="btn-camara"
-onclick="activarCamara()">
-
-📷 Activar cámara
-
-</button>
-
-<button
-class="btn-detener-camara"
-onclick="detenerCamara()">
-
-⏹️ Detener cámara
-
-</button>
-
-<button
-class="btn-cambiar-camara"
-onclick="cambiarCamara()">
-
-🔄 Cambiar cámara
-
-</button>
-
-</div>
-
-<p class="info">
-
-Utiliza la cámara del teléfono para observar el cultivo.
-
-</p>
-
-</div>
-
-</div>
-
-
-<!-- =====================================================
      CONTROL
 ===================================================== -->
 
@@ -436,10 +333,6 @@ Cargando estado...
 </div>
 
 
-<!-- =====================================================
-     ESTADO
-===================================================== -->
-
 <div class="tarjeta">
 
 <h2>📢 Estado del sistema</h2>
@@ -463,153 +356,6 @@ Los datos se actualizan automáticamente.
 
 
 <script>
-
-// ========================================================
-// CÁMARA
-// ========================================================
-
-let flujoCamara = null;
-
-let camaraActual = "environment";
-
-
-// ========================================================
-// ACTIVAR CÁMARA
-// ========================================================
-
-async function activarCamara() {
-
-    try {
-
-        // Si ya existe una cámara activa,
-        // primero la detenemos.
-
-        if (flujoCamara) {
-
-            flujoCamara
-                .getTracks()
-                .forEach(track => track.stop());
-
-        }
-
-
-        const video =
-            document.getElementById(
-                "videoCamara"
-            );
-
-
-        flujoCamara =
-            await navigator.mediaDevices.getUserMedia({
-
-                video: {
-                    facingMode: {
-                        ideal: camaraActual
-                    }
-                },
-
-                audio: false
-
-            });
-
-
-        video.srcObject =
-            flujoCamara;
-
-        video.style.display =
-            "block";
-
-
-        document.getElementById(
-            "estadoCamara"
-        ).innerText =
-            "🟢 Cámara activa";
-
-
-    }
-
-    catch(error) {
-
-        console.error(
-            "Error de cámara:",
-            error
-        );
-
-
-        document.getElementById(
-            "estadoCamara"
-        ).innerText =
-            "❌ No se pudo acceder a la cámara. Verifica los permisos del navegador.";
-
-    }
-
-}
-
-
-// ========================================================
-// DETENER CÁMARA
-// ========================================================
-
-function detenerCamara() {
-
-    const video =
-        document.getElementById(
-            "videoCamara"
-        );
-
-
-    if (flujoCamara) {
-
-        flujoCamara
-            .getTracks()
-            .forEach(track => track.stop());
-
-        flujoCamara = null;
-
-    }
-
-
-    video.srcObject = null;
-
-    video.style.display =
-        "none";
-
-
-    document.getElementById(
-        "estadoCamara"
-    ).innerText =
-        "📷 Cámara apagada";
-
-}
-
-
-// ========================================================
-// CAMBIAR CÁMARA
-// ========================================================
-
-async function cambiarCamara() {
-
-    if (camaraActual === "environment") {
-
-        camaraActual = "user";
-
-    }
-
-    else {
-
-        camaraActual = "environment";
-
-    }
-
-
-    if (flujoCamara) {
-
-        await activarCamara();
-
-    }
-
-}
-
 
 // ========================================================
 // OBTENER DATOS
@@ -658,16 +404,13 @@ async function actualizarDatos() {
             bomba.className =
                 "valor verde";
 
-        }
-
-        else {
+        } else {
 
             bomba.innerText =
                 "APAGADA";
 
             bomba.className =
                 "valor rojo";
-
         }
 
 
@@ -680,13 +423,10 @@ async function actualizarDatos() {
             textoEstado =
                 "🤖 Modo automático";
 
-        }
-
-        else {
+        } else {
 
             textoEstado =
                 "👨‍🌾 Modo manual";
-
         }
 
 
@@ -694,7 +434,6 @@ async function actualizarDatos() {
 
             textoEstado +=
                 " | ⏸️ Automático pausado";
-
         }
 
 
@@ -710,9 +449,7 @@ async function actualizarDatos() {
             datos.alerta;
 
 
-    }
-
-    catch(error) {
+    } catch(error) {
 
         console.log(
             "Error obteniendo datos:",
@@ -760,9 +497,7 @@ async function cambiarModo(modo) {
         actualizarDatos();
 
 
-    }
-
-    catch(error) {
+    } catch(error) {
 
         alert(
             "Error de comunicación"
@@ -809,18 +544,13 @@ async function controlarRiego(accion) {
                 resultado.mensaje
             );
 
-        }
-
-        else {
+        } else {
 
             actualizarDatos();
-
         }
 
 
-    }
-
-    catch(error) {
+    } catch(error) {
 
         alert(
             "Error de comunicación"
@@ -867,9 +597,7 @@ async function reactivarAutomatico() {
         actualizarDatos();
 
 
-    }
-
-    catch(error) {
+    } catch(error) {
 
         alert(
             "Error de comunicación"
@@ -946,6 +674,10 @@ def controlar_riego():
         accion = solicitud.get("accion")
 
 
+        # ====================================================
+        # CAMBIAR MODO
+        # ====================================================
+
         if accion == "modo":
 
             modo = solicitud.get("modo")
@@ -966,10 +698,10 @@ def controlar_riego():
 
             datos["modo"] = modo
 
-            orden_riego[
-                "automatico_pausado"
-            ] = False
+            # Al cambiar de modo se reinicia la pausa
+            orden_riego["automatico_pausado"] = False
 
+            # Apagar bomba al cambiar de modo
             orden_riego["riego"] = False
 
             datos["riego"] = False
@@ -977,12 +709,12 @@ def controlar_riego():
 
             if modo == "automatico":
 
-                datos["alerta"] =
+                datos["alerta"] = \
                     "🤖 Riego automático activado"
 
             else:
 
-                datos["alerta"] =
+                datos["alerta"] = \
                     "👨‍🌾 Riego manual activado"
 
 
@@ -992,13 +724,18 @@ def controlar_riego():
             })
 
 
+        # ====================================================
+        # ENCENDER / REGAR
+        # ====================================================
+
         if accion == "encender":
 
+            # En cualquier modo se puede forzar el riego
             orden_riego["riego"] = True
 
             datos["riego"] = True
 
-            datos["alerta"] =
+            datos["alerta"] = \
                 "💧 Riego activado"
 
 
@@ -1008,12 +745,18 @@ def controlar_riego():
             })
 
 
+        # ====================================================
+        # DETENER
+        # ====================================================
+
         if accion == "apagar":
 
             orden_riego["riego"] = False
 
             datos["riego"] = False
 
+            # Si estaba en automático,
+            # lo dejamos pausado.
 
             if orden_riego["modo"] == "automatico":
 
@@ -1021,12 +764,12 @@ def controlar_riego():
                     "automatico_pausado"
                 ] = True
 
-                datos["alerta"] =
+                datos["alerta"] = \
                     "🛑 Riego detenido. Automático pausado"
 
             else:
 
-                datos["alerta"] =
+                datos["alerta"] = \
                     "🛑 Riego detenido"
 
 
@@ -1036,12 +779,16 @@ def controlar_riego():
             })
 
 
+        # ====================================================
+        # REACTIVAR AUTOMÁTICO
+        # ====================================================
+
         if accion == "reactivar":
 
-            orden_riego["modo"] =
+            orden_riego["modo"] = \
                 "automatico"
 
-            datos["modo"] =
+            datos["modo"] = \
                 "automatico"
 
             orden_riego[
@@ -1052,7 +799,7 @@ def controlar_riego():
 
             datos["riego"] = False
 
-            datos["alerta"] =
+            datos["alerta"] = \
                 "▶️ Riego automático reactivado"
 
 
@@ -1062,6 +809,10 @@ def controlar_riego():
                     "▶️ Riego automático reactivado"
             })
 
+
+        # ====================================================
+        # ACCIÓN NO VÁLIDA
+        # ====================================================
 
         return jsonify({
             "estado": "error",
@@ -1105,27 +856,32 @@ def recibir_datos():
 
             if "temperatura" in nuevos_datos:
 
-                datos["temperatura"] = nuevos_datos["temperatura"]
+                datos["temperatura"] = \
+                    nuevos_datos["temperatura"]
 
 
             if "humedad" in nuevos_datos:
 
-                datos["humedad"] = nuevos_datos["humedad"]
+                datos["humedad"] = \
+                    nuevos_datos["humedad"]
 
 
             if "suelo" in nuevos_datos:
 
-                datos["suelo"] = nuevos_datos["suelo"]
+                datos["suelo"] = \
+                    nuevos_datos["suelo"]
 
 
             if "riego" in nuevos_datos:
 
-                datos["riego"] = nuevos_datos["riego"]
+                datos["riego"] = \
+                    nuevos_datos["riego"]
 
 
             if "modo" in nuevos_datos:
 
-                datos["modo"] = nuevos_datos["modo"]
+                datos["modo"] = \
+                    nuevos_datos["modo"]
 
 
         return jsonify({
