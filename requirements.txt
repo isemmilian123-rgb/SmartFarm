@@ -3,3 +3,4 @@ cryptography
 gunicorn
 simple-websocket
 flask-socketio
+Pillow
