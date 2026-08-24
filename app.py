@@ -1,8 +1,19 @@
 from flask import Flask, render_template_string, jsonify, request
 from flask_socketio import SocketIO, emit, join_room
+import secrets
+import string
 
 app = Flask(__name__)
-socketio = SocketIO(app, cors_allowed_origins="*")
+
+# ============================================================
+# SOCKET.IO
+# ============================================================
+
+socketio = SocketIO(
+    app,
+    cors_allowed_origins="*",
+    async_mode="threading"
+)
 
 # ============================================================
 # DATOS DEL SISTEMA
@@ -28,6 +39,22 @@ orden_riego = {
 }
 
 # ============================================================
+# SALAS DE CÁMARA
+# ============================================================
+
+salas_camara = {}
+
+
+def generar_codigo():
+    caracteres = string.ascii_uppercase + string.digits
+
+    return "".join(
+        secrets.choice(caracteres)
+        for _ in range(6)
+    )
+
+
+# ============================================================
 # INTERFAZ WEB
 # ============================================================
 
@@ -39,10 +66,18 @@ HTML = """
 
 <meta charset="UTF-8">
 
-<meta name="viewport"
-content="width=device-width, initial-scale=1.0">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+>
 
 <title>Smart Farm System</title>
+
+<!-- ======================================================
+     SOCKET.IO
+======================================================= -->
+
+<script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 
 <style>
 
@@ -92,7 +127,9 @@ h2 {
 
 .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns:
+        repeat(auto-fit, minmax(200px, 1fr));
+
     gap: 15px;
 }
 
@@ -130,6 +167,10 @@ button {
     cursor: pointer;
 }
 
+button:hover {
+    opacity: 0.85;
+}
+
 .btn-auto {
     background: #1976d2;
 }
@@ -150,8 +191,16 @@ button {
     background: #388e3c;
 }
 
-button:hover {
-    opacity: 0.85;
+.btn-camara {
+    background: #1565c0;
+}
+
+.btn-detener-camara {
+    background: #c62828;
+}
+
+.btn-cambiar-camara {
+    background: #6a1b9a;
 }
 
 .estado {
@@ -185,50 +234,52 @@ button:hover {
     font-size: 14px;
 }
 
-/* ============================================================
-   CÁMARA DEL TELÉFONO
-============================================================ */
-
 .camara-contenedor {
-    width: 100%;
     text-align: center;
 }
 
-#videoCamara {
+.video {
     width: 100%;
     max-width: 700px;
     max-height: 500px;
     object-fit: cover;
-    background: #000;
+    background: black;
     border-radius: 15px;
+    margin: 15px auto;
+}
+
+#videoCamara {
     display: none;
-    margin: 0 auto 15px auto;
 }
 
-.camara-estado {
-    text-align: center;
-    margin: 15px 0;
-    padding: 15px;
+#videoRemoto {
+    display: none;
+}
+
+.codigo {
+    width: 100%;
+    max-width: 300px;
+    padding: 14px;
+    margin: 15px auto;
+    border: none;
     border-radius: 10px;
-    background: #293329;
     font-size: 18px;
+    text-align: center;
+    text-transform: uppercase;
 }
 
-.btn-camara {
-    background: #1565c0;
-}
-
-.btn-detener-camara {
-    background: #c62828;
-}
-
-.btn-cambiar-camara {
-    background: #6a1b9a;
+.codigo-generado {
+    font-size: 30px;
+    font-weight: bold;
+    letter-spacing: 5px;
+    color: #66bb6a;
+    margin: 15px;
 }
 
 </style>
 
 </head>
+
 
 <body>
 
@@ -236,7 +287,9 @@ button:hover {
 
 <h1>🌱 SMART FARM SYSTEM</h1>
 
-<p>Sistema inteligente de monitoreo agrícola</p>
+<p>
+Sistema inteligente de monitoreo agrícola
+</p>
 
 </header>
 
@@ -245,7 +298,7 @@ button:hover {
 
 
 <!-- =====================================================
-     DATOS
+     MONITOREO
 ===================================================== -->
 
 <div class="tarjeta">
@@ -254,14 +307,19 @@ button:hover {
 
 <div class="grid">
 
+
 <div class="dato">
 
 <div class="icono">🌡️</div>
 
 <div>Temperatura</div>
 
-<div class="valor" id="temperatura">
+<div
+    class="valor"
+    id="temperatura">
+
 -- °C
+
 </div>
 
 </div>
@@ -273,8 +331,12 @@ button:hover {
 
 <div>Humedad ambiente</div>
 
-<div class="valor" id="humedad">
+<div
+    class="valor"
+    id="humedad">
+
 -- %
+
 </div>
 
 </div>
@@ -286,8 +348,12 @@ button:hover {
 
 <div>Humedad del suelo</div>
 
-<div class="valor" id="suelo">
+<div
+    class="valor"
+    id="suelo">
+
 -- %
+
 </div>
 
 </div>
@@ -299,11 +365,16 @@ button:hover {
 
 <div>Bomba</div>
 
-<div class="valor" id="riego">
+<div
+    class="valor"
+    id="riego">
+
 APAGADA
+
 </div>
 
 </div>
+
 
 </div>
 
@@ -311,7 +382,7 @@ APAGADA
 
 
 <!-- =====================================================
-     CÁMARA DEL TELÉFONO
+     CÁMARA LOCAL
 ===================================================== -->
 
 <div class="tarjeta">
@@ -320,21 +391,26 @@ APAGADA
 
 <div class="camara-contenedor">
 
+
 <video
     id="videoCamara"
+    class="video"
     autoplay
     playsinline>
 </video>
 
+
 <div
-    class="camara-estado"
+    class="estado"
     id="estadoCamara">
 
 📷 Cámara apagada
 
 </div>
 
+
 <div class="botones">
+
 
 <button
     class="btn-camara"
@@ -344,6 +420,7 @@ APAGADA
 
 </button>
 
+
 <button
     class="btn-detener-camara"
     onclick="detenerCamara()">
@@ -351,6 +428,7 @@ APAGADA
 ⏹️ Detener cámara
 
 </button>
+
 
 <button
     class="btn-cambiar-camara"
@@ -360,13 +438,126 @@ APAGADA
 
 </button>
 
+
+</div>
+
+
+</div>
+
+</div>
+
+
+<!-- =====================================================
+     TRANSMISIÓN TELÉFONO → COMPUTADORA
+===================================================== -->
+
+<div class="tarjeta">
+
+<h2>📡 Cámara del cultivo en vivo</h2>
+
+
+<div class="camara-contenedor">
+
+
+<h3>
+📱 Teléfono: transmitir cámara
+</h3>
+
+
+<button
+    class="btn-camara"
+    onclick="iniciarTransmision()">
+
+📡 Transmitir cámara
+
+</button>
+
+
+<div
+    id="codigoMostrar"
+    style="display:none;">
+
+<p>
+Código para conectar la computadora:
+</p>
+
+<div
+    class="codigo-generado"
+    id="codigoGenerado">
+
+------
+
 </div>
 
 <p class="info">
-
-Utiliza la cámara del teléfono para observar el cultivo.
-
+Mantén esta página abierta en el teléfono.
 </p>
+
+</div>
+
+
+<hr
+style="
+    margin:25px 0;
+    border:0;
+    border-top:1px solid #444;
+">
+
+
+<h3>
+💻 Computadora: ver cámara
+</h3>
+
+
+<input
+    id="codigoSala"
+    class="codigo"
+    type="text"
+    maxlength="6"
+    placeholder="Código de cámara"
+>
+
+
+<div class="botones">
+
+
+<button
+    class="btn-cambiar-camara"
+    onclick="verCamara()">
+
+💻 Ver cámara
+
+</button>
+
+
+<button
+    class="btn-detener-camara"
+    onclick="detenerVideoRemoto()">
+
+⏹️ Desconectar
+
+</button>
+
+
+</div>
+
+
+<video
+    id="videoRemoto"
+    class="video"
+    autoplay
+    playsinline>
+</video>
+
+
+<div
+    class="estado"
+    id="estadoTransmision">
+
+📡 Cámara sin conexión
+
+</div>
+
 
 </div>
 
@@ -381,11 +572,13 @@ Utiliza la cámara del teléfono para observar el cultivo.
 
 <h2>🚰 Control del riego</h2>
 
+
 <div class="botones">
 
+
 <button
-class="btn-auto"
-onclick="cambiarModo('automatico')">
+    class="btn-auto"
+    onclick="cambiarModo('automatico')">
 
 🤖 Automático
 
@@ -393,8 +586,8 @@ onclick="cambiarModo('automatico')">
 
 
 <button
-class="btn-manual"
-onclick="cambiarModo('manual')">
+    class="btn-manual"
+    onclick="cambiarModo('manual')">
 
 👨‍🌾 Manual
 
@@ -402,8 +595,8 @@ onclick="cambiarModo('manual')">
 
 
 <button
-class="btn-regar"
-onclick="controlarRiego('encender')">
+    class="btn-regar"
+    onclick="controlarRiego('encender')">
 
 💧 Regar
 
@@ -411,8 +604,8 @@ onclick="controlarRiego('encender')">
 
 
 <button
-class="btn-detener"
-onclick="controlarRiego('apagar')">
+    class="btn-detener"
+    onclick="controlarRiego('apagar')">
 
 🛑 Detener
 
@@ -420,44 +613,53 @@ onclick="controlarRiego('apagar')">
 
 
 <button
-class="btn-reactivar"
-onclick="reactivarAutomatico()">
+    class="btn-reactivar"
+    onclick="reactivarAutomatico()">
 
 ▶️ Reactivar automático
 
 </button>
 
+
 </div>
 
 
-<div class="estado" id="estado">
+<div
+    class="estado"
+    id="estado">
 
 Cargando estado...
 
 </div>
 
+
 </div>
 
 
 <!-- =====================================================
-     ESTADO DEL SISTEMA
+     ALERTAS
 ===================================================== -->
 
 <div class="tarjeta">
 
 <h2>📢 Estado del sistema</h2>
 
-<div class="estado" id="alerta">
+
+<div
+    class="estado"
+    id="alerta">
 
 Esperando información...
 
 </div>
+
 
 <p class="info">
 
 Los datos se actualizan automáticamente.
 
 </p>
+
 
 </div>
 
@@ -468,7 +670,14 @@ Los datos se actualizan automáticamente.
 <script>
 
 // ========================================================
-// CÁMARA DEL TELÉFONO
+// SOCKET.IO
+// ========================================================
+
+const socket = io();
+
+
+// ========================================================
+// VARIABLES DE CÁMARA LOCAL
 // ========================================================
 
 let flujoCamara = null;
@@ -477,15 +686,50 @@ let camaraActual = "environment";
 
 
 // ========================================================
-// ACTIVAR CÁMARA
+// VARIABLES WEBRTC
+// ========================================================
+
+let peerConnection = null;
+
+let salaActual = null;
+
+let soyTransmisor = false;
+
+
+// Servidores STUN públicos.
+// Ayudan a establecer la conexión entre dispositivos.
+
+const configuracionRTC = {
+
+    iceServers: [
+
+        {
+            urls:
+            "stun:stun.l.google.com:19302"
+        },
+
+        {
+            urls:
+            "stun:stun1.l.google.com:19302"
+        }
+
+    ]
+
+};
+
+
+// ========================================================
+// ACTIVAR CÁMARA LOCAL
 // ========================================================
 
 async function activarCamara() {
 
     try {
 
-        if (!navigator.mediaDevices ||
-            !navigator.mediaDevices.getUserMedia) {
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia
+        ) {
 
             alert(
                 "Este navegador no permite acceder a la cámara."
@@ -499,20 +743,25 @@ async function activarCamara() {
 
             flujoCamara
                 .getTracks()
-                .forEach(function(track) {
-                    track.stop();
-                });
+                .forEach(
+                    function(track) {
+                        track.stop();
+                    }
+                );
 
         }
 
 
         flujoCamara =
-            await navigator.mediaDevices.getUserMedia({
+            await navigator.mediaDevices
+            .getUserMedia({
 
                 video: {
+
                     facingMode: {
                         ideal: camaraActual
                     }
+
                 },
 
                 audio: false
@@ -529,6 +778,7 @@ async function activarCamara() {
         video.srcObject =
             flujoCamara;
 
+
         video.style.display =
             "block";
 
@@ -539,7 +789,9 @@ async function activarCamara() {
             "🟢 Cámara activa";
 
 
-    } catch (error) {
+    }
+
+    catch(error) {
 
         console.error(
             "Error de cámara:",
@@ -554,7 +806,7 @@ async function activarCamara() {
 
 
         alert(
-            "No se pudo acceder a la cámara. Verifica los permisos del navegador."
+            "No se pudo acceder a la cámara. Verifica los permisos."
         );
 
     }
@@ -563,7 +815,7 @@ async function activarCamara() {
 
 
 // ========================================================
-// DETENER CÁMARA
+// DETENER CÁMARA LOCAL
 // ========================================================
 
 function detenerCamara() {
@@ -572,9 +824,11 @@ function detenerCamara() {
 
         flujoCamara
             .getTracks()
-            .forEach(function(track) {
-                track.stop();
-            });
+            .forEach(
+                function(track) {
+                    track.stop();
+                }
+            );
 
         flujoCamara = null;
 
@@ -607,11 +861,16 @@ function detenerCamara() {
 
 async function cambiarCamara() {
 
-    if (camaraActual === "environment") {
+    if (
+        camaraActual ===
+        "environment"
+    ) {
 
         camaraActual = "user";
 
-    } else {
+    }
+
+    else {
 
         camaraActual = "environment";
 
@@ -628,6 +887,510 @@ async function cambiarCamara() {
 
 
 // ========================================================
+// CREAR CONEXIÓN WEBRTC
+// ========================================================
+
+function crearPeerConnection() {
+
+    peerConnection =
+        new RTCPeerConnection(
+            configuracionRTC
+        );
+
+
+    peerConnection.onicecandidate =
+        function(event) {
+
+            if (event.candidate) {
+
+                socket.emit(
+                    "candidato",
+                    {
+
+                        sala: salaActual,
+
+                        candidate:
+                            event.candidate
+
+                    }
+                );
+
+            }
+
+        };
+
+
+    peerConnection.ontrack =
+        function(event) {
+
+            const video =
+                document.getElementById(
+                    "videoRemoto"
+                );
+
+
+            if (
+                event.streams &&
+                event.streams[0]
+            ) {
+
+                video.srcObject =
+                    event.streams[0];
+
+                video.style.display =
+                    "block";
+
+
+                document.getElementById(
+                    "estadoTransmision"
+                ).innerText =
+                    "🟢 Cámara del teléfono conectada";
+
+            }
+
+        };
+
+
+    return peerConnection;
+
+}
+
+
+// ========================================================
+// TELÉFONO: INICIAR TRANSMISIÓN
+// ========================================================
+
+async function iniciarTransmision() {
+
+    try {
+
+        // Activamos la cámara trasera.
+
+        if (!flujoCamara) {
+
+            camaraActual =
+                "environment";
+
+            await activarCamara();
+
+        }
+
+
+        if (!flujoCamara) {
+
+            return;
+
+        }
+
+
+        // Generamos un código.
+
+        const respuesta =
+            await fetch(
+                "/api/camara/nueva",
+                {
+                    method: "POST"
+                }
+            );
+
+
+        const resultado =
+            await respuesta.json();
+
+
+        salaActual =
+            resultado.codigo;
+
+
+        soyTransmisor =
+            true;
+
+
+        document.getElementById(
+            "codigoGenerado"
+        ).innerText =
+            salaActual;
+
+
+        document.getElementById(
+            "codigoMostrar"
+        ).style.display =
+            "block";
+
+
+        document.getElementById(
+            "estadoTransmision"
+        ).innerText =
+            "🟡 Esperando computadora...";
+
+
+        socket.emit(
+            "crear_sala",
+            {
+                sala: salaActual
+            }
+        );
+
+
+    }
+
+    catch(error) {
+
+        console.error(error);
+
+        alert(
+            "No se pudo iniciar la transmisión."
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// COMPUTADORA: VER CÁMARA
+// ========================================================
+
+async function verCamara() {
+
+    try {
+
+        const input =
+            document.getElementById(
+                "codigoSala"
+            );
+
+
+        const codigo =
+            input.value
+            .trim()
+            .toUpperCase();
+
+
+        if (!codigo) {
+
+            alert(
+                "Escribe el código de la cámara."
+            );
+
+            return;
+
+        }
+
+
+        salaActual =
+            codigo;
+
+
+        soyTransmisor =
+            false;
+
+
+        crearPeerConnection();
+
+
+        document.getElementById(
+            "estadoTransmision"
+        ).innerText =
+            "🟡 Conectando con el teléfono...";
+
+
+        socket.emit(
+            "unirse_sala",
+            {
+                sala: salaActual
+            }
+        );
+
+
+    }
+
+    catch(error) {
+
+        console.error(error);
+
+        alert(
+            "No se pudo conectar con la cámara."
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// SOCKET: USUARIO SE UNIÓ
+// ========================================================
+
+socket.on(
+    "usuario_unido",
+    async function() {
+
+        if (!soyTransmisor) {
+
+            return;
+
+        }
+
+
+        try {
+
+            crearPeerConnection();
+
+
+            // Añadir la cámara del teléfono.
+
+            flujoCamara
+                .getTracks()
+                .forEach(
+                    function(track) {
+
+                        peerConnection.addTrack(
+                            track,
+                            flujoCamara
+                        );
+
+                    }
+                );
+
+
+            const oferta =
+                await peerConnection
+                .createOffer();
+
+
+            await peerConnection
+                .setLocalDescription(
+                    oferta
+                );
+
+
+            socket.emit(
+                "oferta",
+                {
+
+                    sala: salaActual,
+
+                    oferta:
+                        peerConnection
+                        .localDescription
+
+                }
+            );
+
+
+            document.getElementById(
+                "estadoTransmision"
+            ).innerText =
+                "🟢 Transmitiendo cámara...";
+
+        }
+
+        catch(error) {
+
+            console.error(error);
+
+        }
+
+    }
+);
+
+
+// ========================================================
+// SOCKET: OFERTA
+// ========================================================
+
+socket.on(
+    "oferta",
+    async function(data) {
+
+        if (soyTransmisor) {
+
+            return;
+
+        }
+
+
+        try {
+
+            if (!peerConnection) {
+
+                crearPeerConnection();
+
+            }
+
+
+            await peerConnection
+                .setRemoteDescription(
+                    new RTCSessionDescription(
+                        data.oferta
+                    )
+                );
+
+
+            const respuesta =
+                await peerConnection
+                .createAnswer();
+
+
+            await peerConnection
+                .setLocalDescription(
+                    respuesta
+                );
+
+
+            socket.emit(
+                "respuesta",
+                {
+
+                    sala:
+                        data.sala,
+
+                    respuesta:
+                        peerConnection
+                        .localDescription
+
+                }
+            );
+
+        }
+
+        catch(error) {
+
+            console.error(
+                "Error procesando oferta:",
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// ========================================================
+// SOCKET: RESPUESTA
+// ========================================================
+
+socket.on(
+    "respuesta",
+    async function(data) {
+
+        if (!soyTransmisor) {
+
+            return;
+
+        }
+
+
+        try {
+
+            await peerConnection
+                .setRemoteDescription(
+                    new RTCSessionDescription(
+                        data.respuesta
+                    )
+                );
+
+        }
+
+        catch(error) {
+
+            console.error(
+                "Error procesando respuesta:",
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// ========================================================
+// SOCKET: CANDIDATO ICE
+// ========================================================
+
+socket.on(
+    "candidato",
+    async function(data) {
+
+        try {
+
+            if (!peerConnection) {
+
+                return;
+
+            }
+
+
+            if (
+                data.candidate
+            ) {
+
+                await peerConnection
+                    .addIceCandidate(
+                        new RTCIceCandidate(
+                            data.candidate
+                        )
+                    );
+
+            }
+
+        }
+
+        catch(error) {
+
+            console.error(
+                "Error ICE:",
+                error
+            );
+
+        }
+
+    }
+);
+
+
+// ========================================================
+// DESCONECTAR VIDEO REMOTO
+// ========================================================
+
+function detenerVideoRemoto() {
+
+    if (peerConnection) {
+
+        peerConnection.close();
+
+        peerConnection = null;
+
+    }
+
+
+    const video =
+        document.getElementById(
+            "videoRemoto"
+        );
+
+
+    video.srcObject = null;
+
+    video.style.display =
+        "none";
+
+
+    salaActual = null;
+
+
+    document.getElementById(
+        "estadoTransmision"
+    ).innerText =
+        "📡 Cámara sin conexión";
+
+}
+
+
+// ========================================================
 // OBTENER DATOS
 // ========================================================
 
@@ -636,7 +1399,10 @@ async function actualizarDatos() {
     try {
 
         const respuesta =
-            await fetch("/api/datos");
+            await fetch(
+                "/api/datos"
+            );
+
 
         const datos =
             await respuesta.json();
@@ -645,21 +1411,26 @@ async function actualizarDatos() {
         document.getElementById(
             "temperatura"
         ).innerText =
-            Number(datos.temperatura).toFixed(1)
+            Number(
+                datos.temperatura
+            ).toFixed(1)
             + " °C";
 
 
         document.getElementById(
             "humedad"
         ).innerText =
-            Number(datos.humedad).toFixed(1)
+            Number(
+                datos.humedad
+            ).toFixed(1)
             + " %";
 
 
         document.getElementById(
             "suelo"
         ).innerText =
-            datos.suelo + " %";
+            datos.suelo
+            + " %";
 
 
         const bomba =
@@ -676,7 +1447,9 @@ async function actualizarDatos() {
             bomba.className =
                 "valor verde";
 
-        } else {
+        }
+
+        else {
 
             bomba.innerText =
                 "APAGADA";
@@ -688,15 +1461,21 @@ async function actualizarDatos() {
 
 
         let textoEstado =
-            "Modo: " + datos.modo;
+            "Modo: "
+            + datos.modo;
 
 
-        if (datos.modo === "automatico") {
+        if (
+            datos.modo ===
+            "automatico"
+        ) {
 
             textoEstado =
                 "🤖 Modo automático";
 
-        } else {
+        }
+
+        else {
 
             textoEstado =
                 "👨‍🌾 Modo manual";
@@ -704,7 +1483,9 @@ async function actualizarDatos() {
         }
 
 
-        if (datos.automatico_pausado) {
+        if (
+            datos.automatico_pausado
+        ) {
 
             textoEstado +=
                 " | ⏸️ Automático pausado";
@@ -723,8 +1504,9 @@ async function actualizarDatos() {
         ).innerText =
             datos.alerta;
 
+    }
 
-    } catch (error) {
+    catch(error) {
 
         console.log(
             "Error obteniendo datos:",
@@ -748,17 +1530,26 @@ async function cambiarModo(modo) {
             await fetch(
                 "/api/riego",
                 {
-                    method: "POST",
+
+                    method:
+                        "POST",
 
                     headers: {
                         "Content-Type":
                             "application/json"
                     },
 
-                    body: JSON.stringify({
-                        accion: "modo",
-                        modo: modo
-                    })
+                    body:
+                        JSON.stringify({
+
+                            accion:
+                                "modo",
+
+                            modo:
+                                modo
+
+                        })
+
                 }
             );
 
@@ -771,10 +1562,12 @@ async function cambiarModo(modo) {
             resultado.mensaje
         );
 
+
         actualizarDatos();
 
+    }
 
-    } catch (error) {
+    catch(error) {
 
         alert(
             "Error de comunicación"
@@ -789,7 +1582,9 @@ async function cambiarModo(modo) {
 // REGAR / DETENER
 // ========================================================
 
-async function controlarRiego(accion) {
+async function controlarRiego(
+    accion
+) {
 
     try {
 
@@ -797,16 +1592,23 @@ async function controlarRiego(accion) {
             await fetch(
                 "/api/riego",
                 {
-                    method: "POST",
+
+                    method:
+                        "POST",
 
                     headers: {
                         "Content-Type":
                             "application/json"
                     },
 
-                    body: JSON.stringify({
-                        accion: accion
-                    })
+                    body:
+                        JSON.stringify({
+
+                            accion:
+                                accion
+
+                        })
+
                 }
             );
 
@@ -815,20 +1617,26 @@ async function controlarRiego(accion) {
             await respuesta.json();
 
 
-        if (resultado.estado === "error") {
+        if (
+            resultado.estado ===
+            "error"
+        ) {
 
             alert(
                 resultado.mensaje
             );
 
-        } else {
+        }
+
+        else {
 
             actualizarDatos();
 
         }
 
+    }
 
-    } catch (error) {
+    catch(error) {
 
         alert(
             "Error de comunicación"
@@ -851,17 +1659,23 @@ async function reactivarAutomatico() {
             await fetch(
                 "/api/riego",
                 {
-                    method: "POST",
+
+                    method:
+                        "POST",
 
                     headers: {
                         "Content-Type":
                             "application/json"
                     },
 
-                    body: JSON.stringify({
-                        accion:
-                            "reactivar"
-                    })
+                    body:
+                        JSON.stringify({
+
+                            accion:
+                                "reactivar"
+
+                        })
+
                 }
             );
 
@@ -874,10 +1688,12 @@ async function reactivarAutomatico() {
             resultado.mensaje
         );
 
+
         actualizarDatos();
 
+    }
 
-    } catch (error) {
+    catch(error) {
 
         alert(
             "Error de comunicación"
@@ -889,7 +1705,7 @@ async function reactivarAutomatico() {
 
 
 // ========================================================
-// ACTUALIZAR CADA 3 SEGUNDOS
+// ACTUALIZACIÓN AUTOMÁTICA
 // ========================================================
 
 actualizarDatos();
@@ -914,27 +1730,62 @@ setInterval(
 @app.route("/")
 def inicio():
 
-    return render_template_string(HTML)
+    return render_template_string(
+        HTML
+    )
+
+
+# ============================================================
+# GENERAR CÓDIGO DE CÁMARA
+# ============================================================
+
+@app.route(
+    "/api/camara/nueva",
+    methods=["POST"]
+)
+def nueva_camara():
+
+    codigo = generar_codigo()
+
+    salas_camara[codigo] = {
+        "creada": True
+    }
+
+    return jsonify({
+        "estado": "ok",
+        "codigo": codigo
+    })
 
 
 # ============================================================
 # API DATOS - GET
 # ============================================================
 
-@app.route("/api/datos", methods=["GET"])
+@app.route(
+    "/api/datos",
+    methods=["GET"]
+)
 def obtener_datos():
 
-    datos["automatico_pausado"] = \
-        orden_riego["automatico_pausado"]
+    datos[
+        "automatico_pausado"
+    ] = orden_riego[
+        "automatico_pausado"
+    ]
 
-    return jsonify(datos)
+    return jsonify(
+        datos
+    )
 
 
 # ============================================================
 # API CONTROL DEL RIEGO
 # ============================================================
 
-@app.route("/api/riego", methods=["POST"])
+@app.route(
+    "/api/riego",
+    methods=["POST"]
+)
 def controlar_riego():
 
     global datos
@@ -942,13 +1793,20 @@ def controlar_riego():
 
     try:
 
-        solicitud = request.get_json()
+        solicitud = \
+            request.get_json()
+
 
         if not solicitud:
 
             return jsonify({
-                "estado": "error",
-                "mensaje": "No se recibieron datos"
+
+                "estado":
+                    "error",
+
+                "mensaje":
+                    "No se recibieron datos"
+
             }), 400
 
 
@@ -974,16 +1832,24 @@ def controlar_riego():
             ]:
 
                 return jsonify({
-                    "estado": "error",
-                    "mensaje": "Modo no válido"
+
+                    "estado":
+                        "error",
+
+                    "mensaje":
+                        "Modo no válido"
+
                 }), 400
 
 
-            orden_riego["modo"] = \
-                modo
+            orden_riego[
+                "modo"
+            ] = modo
 
-            datos["modo"] = \
-                modo
+
+            datos[
+                "modo"
+            ] = modo
 
 
             orden_riego[
@@ -991,27 +1857,41 @@ def controlar_riego():
             ] = False
 
 
-            orden_riego["riego"] = \
-                False
+            orden_riego[
+                "riego"
+            ] = False
 
-            datos["riego"] = \
-                False
+
+            datos[
+                "riego"
+            ] = False
 
 
             if modo == "automatico":
 
-                datos["alerta"] = \
+                datos[
+                    "alerta"
+                ] = (
                     "🤖 Riego automático activado"
+                )
 
             else:
 
-                datos["alerta"] = \
+                datos[
+                    "alerta"
+                ] = (
                     "👨‍🌾 Riego manual activado"
+                )
 
 
             return jsonify({
-                "estado": "ok",
-                "mensaje": datos["alerta"]
+
+                "estado":
+                    "ok",
+
+                "mensaje":
+                    datos["alerta"]
+
             })
 
 
@@ -1021,19 +1901,29 @@ def controlar_riego():
 
         if accion == "encender":
 
-            orden_riego["riego"] = \
-                True
+            orden_riego[
+                "riego"
+            ] = True
 
-            datos["riego"] = \
-                True
 
-            datos["alerta"] = \
-                "💧 Riego activado"
+            datos[
+                "riego"
+            ] = True
+
+
+            datos[
+                "alerta"
+            ] = "💧 Riego activado"
 
 
             return jsonify({
-                "estado": "ok",
-                "mensaje": "💧 Riego activado"
+
+                "estado":
+                    "ok",
+
+                "mensaje":
+                    "💧 Riego activado"
+
             })
 
 
@@ -1043,32 +1933,50 @@ def controlar_riego():
 
         if accion == "apagar":
 
-            orden_riego["riego"] = \
-                False
-
-            datos["riego"] = \
-                False
+            orden_riego[
+                "riego"
+            ] = False
 
 
-            if orden_riego["modo"] == \
-                    "automatico":
+            datos[
+                "riego"
+            ] = False
+
+
+            if (
+                orden_riego["modo"]
+                == "automatico"
+            ):
 
                 orden_riego[
                     "automatico_pausado"
                 ] = True
 
-                datos["alerta"] = \
-                    "🛑 Riego detenido. Automático pausado"
+
+                datos[
+                    "alerta"
+                ] = (
+                    "🛑 Riego detenido. "
+                    "Automático pausado"
+                )
 
             else:
 
-                datos["alerta"] = \
+                datos[
+                    "alerta"
+                ] = (
                     "🛑 Riego detenido"
+                )
 
 
             return jsonify({
-                "estado": "ok",
-                "mensaje": datos["alerta"]
+
+                "estado":
+                    "ok",
+
+                "mensaje":
+                    datos["alerta"]
+
             })
 
 
@@ -1078,11 +1986,14 @@ def controlar_riego():
 
         if accion == "reactivar":
 
-            orden_riego["modo"] = \
-                "automatico"
+            orden_riego[
+                "modo"
+            ] = "automatico"
 
-            datos["modo"] = \
-                "automatico"
+
+            datos[
+                "modo"
+            ] = "automatico"
 
 
             orden_riego[
@@ -1090,39 +2001,55 @@ def controlar_riego():
             ] = False
 
 
-            orden_riego["riego"] = \
-                False
-
-            datos["riego"] = \
-                False
+            orden_riego[
+                "riego"
+            ] = False
 
 
-            datos["alerta"] = \
+            datos[
+                "riego"
+            ] = False
+
+
+            datos[
+                "alerta"
+            ] = (
                 "▶️ Riego automático reactivado"
+            )
 
 
             return jsonify({
-                "estado": "ok",
+
+                "estado":
+                    "ok",
+
                 "mensaje":
                     "▶️ Riego automático reactivado"
+
             })
 
 
-        # ====================================================
-        # ACCIÓN NO VÁLIDA
-        # ====================================================
-
         return jsonify({
-            "estado": "error",
-            "mensaje": "Acción no válida"
+
+            "estado":
+                "error",
+
+            "mensaje":
+                "Acción no válida"
+
         }), 400
 
 
     except Exception as error:
 
         return jsonify({
-            "estado": "error",
-            "mensaje": str(error)
+
+            "estado":
+                "error",
+
+            "mensaje":
+                str(error)
+
         }), 400
 
 
@@ -1130,7 +2057,10 @@ def controlar_riego():
 # ESP32 CONSULTA LAS ÓRDENES
 # ============================================================
 
-@app.route("/api/riego", methods=["GET"])
+@app.route(
+    "/api/riego",
+    methods=["GET"]
+)
 def obtener_orden_riego():
 
     return jsonify(
@@ -1142,7 +2072,10 @@ def obtener_orden_riego():
 # ESP32 ENVÍA DATOS
 # ============================================================
 
-@app.route("/api/datos", methods=["POST"])
+@app.route(
+    "/api/datos",
+    methods=["POST"]
+)
 def recibir_datos():
 
     global datos
@@ -1155,49 +2088,240 @@ def recibir_datos():
 
         if nuevos_datos:
 
-            if "temperatura" in nuevos_datos:
+            if (
+                "temperatura"
+                in nuevos_datos
+            ):
 
-                datos["temperatura"] = \
-                    nuevos_datos["temperatura"]
-
-
-            if "humedad" in nuevos_datos:
-
-                datos["humedad"] = \
-                    nuevos_datos["humedad"]
-
-
-            if "suelo" in nuevos_datos:
-
-                datos["suelo"] = \
-                    nuevos_datos["suelo"]
+                datos[
+                    "temperatura"
+                ] = nuevos_datos[
+                    "temperatura"
+                ]
 
 
-            if "riego" in nuevos_datos:
+            if (
+                "humedad"
+                in nuevos_datos
+            ):
 
-                datos["riego"] = \
-                    nuevos_datos["riego"]
+                datos[
+                    "humedad"
+                ] = nuevos_datos[
+                    "humedad"
+                ]
 
 
-            if "modo" in nuevos_datos:
+            if (
+                "suelo"
+                in nuevos_datos
+            ):
 
-                datos["modo"] = \
-                    nuevos_datos["modo"]
+                datos[
+                    "suelo"
+                ] = nuevos_datos[
+                    "suelo"
+                ]
+
+
+            if (
+                "riego"
+                in nuevos_datos
+            ):
+
+                datos[
+                    "riego"
+                ] = nuevos_datos[
+                    "riego"
+                ]
+
+
+            if (
+                "modo"
+                in nuevos_datos
+            ):
+
+                datos[
+                    "modo"
+                ] = nuevos_datos[
+                    "modo"
+                ]
 
 
         return jsonify({
-            "estado": "ok",
+
+            "estado":
+                "ok",
+
             "mensaje":
                 "Datos recibidos correctamente"
+
         })
 
 
     except Exception as error:
 
         return jsonify({
-            "estado": "error",
-            "mensaje": str(error)
+
+            "estado":
+                "error",
+
+            "mensaje":
+                str(error)
+
         }), 400
+
+
+# ============================================================
+# SOCKET.IO - CREAR SALA
+# ============================================================
+
+@socketio.on(
+    "crear_sala"
+)
+def crear_sala(data):
+
+    sala = data.get(
+        "sala"
+    )
+
+
+    if not sala:
+
+        return
+
+
+    join_room(
+        sala
+    )
+
+
+    emit(
+        "sala_creada",
+        {
+            "sala":
+                sala
+        },
+        to=request.sid
+    )
+
+
+# ============================================================
+# SOCKET.IO - UNIRSE
+# ============================================================
+
+@socketio.on(
+    "unirse_sala"
+)
+def unirse_sala(data):
+
+    sala = data.get(
+        "sala"
+    )
+
+
+    if not sala:
+
+        return
+
+
+    if sala not in salas_camara:
+
+        emit(
+            "error_camara",
+            {
+                "mensaje":
+                    "Código de cámara no encontrado."
+            },
+            to=request.sid
+        )
+
+        return
+
+
+    join_room(
+        sala
+    )
+
+
+    emit(
+        "usuario_unido",
+        {},
+        to=sala,
+        include_self=False
+    )
+
+
+# ============================================================
+# SOCKET.IO - OFERTA
+# ============================================================
+
+@socketio.on(
+    "oferta"
+)
+def recibir_oferta(data):
+
+    sala = data.get(
+        "sala"
+    )
+
+
+    if sala:
+
+        emit(
+            "oferta",
+            data,
+            to=sala,
+            include_self=False
+        )
+
+
+# ============================================================
+# SOCKET.IO - RESPUESTA
+# ============================================================
+
+@socketio.on(
+    "respuesta"
+)
+def recibir_respuesta(data):
+
+    sala = data.get(
+        "sala"
+    )
+
+
+    if sala:
+
+        emit(
+            "respuesta",
+            data,
+            to=sala,
+            include_self=False
+        )
+
+
+# ============================================================
+# SOCKET.IO - ICE
+# ============================================================
+
+@socketio.on(
+    "candidato"
+)
+def recibir_candidato(data):
+
+    sala = data.get(
+        "sala"
+    )
+
+
+    if sala:
+
+        emit(
+            "candidato",
+            data,
+            to=sala,
+            include_self=False
+        )
 
 
 # ============================================================
@@ -1205,6 +2329,7 @@ def recibir_datos():
 # ============================================================
 
 if __name__ == "__main__":
+
     socketio.run(
         app,
         host="0.0.0.0",
