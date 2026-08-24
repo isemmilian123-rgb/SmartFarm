@@ -423,7 +423,6 @@ setInterval(
 
 @app.route("/")
 def inicio():
-
     return render_template_string(HTML)
 
 
@@ -433,7 +432,6 @@ def inicio():
 
 @app.route("/api/datos", methods=["GET"])
 def obtener_datos():
-
     return jsonify(datos)
 
 
@@ -450,9 +448,7 @@ def controlar_riego():
     try:
 
         solicitud = request.get_json()
-
         accion = solicitud.get("accion")
-
 
         # ----------------------------------------------------
         # CAMBIAR MODO
@@ -462,57 +458,34 @@ def controlar_riego():
 
             modo = solicitud.get("modo")
 
-
-            if modo not in [
-                "automatico",
-                "manual"
-            ]:
+            if modo not in ["automatico", "manual"]:
 
                 return jsonify({
-
                     "estado": "error",
-
-                    "mensaje":
-                    "Modo no válido"
-
+                    "mensaje": "Modo no válido"
                 }), 400
 
-
             orden_riego["modo"] = modo
-
             datos["modo"] = modo
 
-
-            # Al cambiar de modo,
-            # apagamos cualquier orden anterior.
+            # Al cambiar de modo se apaga cualquier
+            # orden anterior de riego.
 
             orden_riego["riego"] = False
-
             datos["riego"] = False
-
 
             if modo == "automatico":
 
-                datos["alerta"] = (
-                    "🤖 Riego automático activado"
-                )
+                datos["alerta"] = "🤖 Riego automático activado"
 
             else:
 
-                datos["alerta"] = (
-                    "👨‍🌾 Riego manual activado"
-                )
-
+                datos["alerta"] = "👨‍🌾 Riego manual activado"
 
             return jsonify({
-
                 "estado": "ok",
-
-                "mensaje":
-                datos["alerta"]
-
+                "mensaje": datos["alerta"]
             })
-
 
         # ----------------------------------------------------
         # ENCENDER BOMBA
@@ -520,38 +493,24 @@ def controlar_riego():
 
         if accion == "encender":
 
-            # Solo permitimos control manual
+            # Solo se permite encender manualmente
+            # cuando el sistema está en modo manual.
 
             if orden_riego["modo"] != "manual":
 
                 return jsonify({
-
                     "estado": "error",
-
-                    "mensaje":
-                    "Cambia primero a modo manual"
-
+                    "mensaje": "Cambia primero a modo manual"
                 }), 400
 
-
             orden_riego["riego"] = True
-
             datos["riego"] = True
-
-            datos["alerta"] = (
-                "💧 Riego manual activado"
-            )
-
+            datos["alerta"] = "💧 Riego manual activado"
 
             return jsonify({
-
                 "estado": "ok",
-
-                "mensaje":
-                "💧 Riego activado"
-
+                "mensaje": "💧 Riego activado"
             })
-
 
         # ----------------------------------------------------
         # APAGAR BOMBA
@@ -560,43 +519,28 @@ def controlar_riego():
         if accion == "apagar":
 
             orden_riego["riego"] = False
-
             datos["riego"] = False
-
-            datos["alerta"] = (
-                "🛑 Riego detenido"
-            )
-
+            datos["alerta"] = "🛑 Riego detenido"
 
             return jsonify({
-
                 "estado": "ok",
-
-                "mensaje":
-                "🛑 Riego detenido"
-
+                "mensaje": "🛑 Riego detenido"
             })
 
+        # ----------------------------------------------------
+        # ACCIÓN NO VÁLIDA
+        # ----------------------------------------------------
 
         return jsonify({
-
             "estado": "error",
-
-            "mensaje":
-            "Acción no válida"
-
+            "mensaje": "Acción no válida"
         }), 400
-
 
     except Exception as error:
 
         return jsonify({
-
             "estado": "error",
-
-            "mensaje":
-            str(error)
-
+            "mensaje": str(error)
         }), 400
 
 
@@ -621,62 +565,35 @@ def recibir_datos():
 
     try:
 
-        nuevos_datos =
-            request.get_json()
-
+        nuevos_datos = request.get_json()
 
         if nuevos_datos:
 
-
             if "temperatura" in nuevos_datos:
-
-                datos["temperatura"] = \
-                    nuevos_datos["temperatura"]
-
+                datos["temperatura"] = nuevos_datos["temperatura"]
 
             if "humedad" in nuevos_datos:
-
-                datos["humedad"] = \
-                    nuevos_datos["humedad"]
-
+                datos["humedad"] = nuevos_datos["humedad"]
 
             if "suelo" in nuevos_datos:
-
-                datos["suelo"] = \
-                    nuevos_datos["suelo"]
-
+                datos["suelo"] = nuevos_datos["suelo"]
 
             if "riego" in nuevos_datos:
-
-                datos["riego"] = \
-                    nuevos_datos["riego"]
-
+                datos["riego"] = nuevos_datos["riego"]
 
             if "alerta" in nuevos_datos:
-
-                datos["alerta"] = \
-                    nuevos_datos["alerta"]
-
+                datos["alerta"] = nuevos_datos["alerta"]
 
         return jsonify({
-
             "estado": "ok",
-
-            "mensaje":
-            "Datos recibidos correctamente"
-
+            "mensaje": "Datos recibidos correctamente"
         })
-
 
     except Exception as error:
 
         return jsonify({
-
             "estado": "error",
-
-            "mensaje":
-            str(error)
-
+            "mensaje": str(error)
         }), 400
 
 
@@ -687,12 +604,7 @@ def recibir_datos():
 if __name__ == "__main__":
 
     app.run(
-
         host="0.0.0.0",
-
         port=5000,
-
         debug=False
-
     )
-
