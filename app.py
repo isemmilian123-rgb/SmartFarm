@@ -1,10 +1,9 @@
-from flask import Flask, render_template_string, request, jsonify
+from flask import Flask, render_template_string, jsonify, request
 
 app = Flask(__name__)
 
-
 # ============================================================
-# ESTADO DEL SISTEMA
+# DATOS DEL SISTEMA
 # ============================================================
 
 datos = {
@@ -16,19 +15,18 @@ datos = {
     "alerta": "Sistema iniciado"
 }
 
-
 # ============================================================
 # ORDEN PARA EL ESP32
 # ============================================================
 
 orden_riego = {
     "modo": "automatico",
-    "riego": False
+    "riego": False,
+    "automatico_pausado": False
 }
 
-
 # ============================================================
-# PÁGINA PRINCIPAL
+# INTERFAZ WEB
 # ============================================================
 
 HTML = """
@@ -42,87 +40,154 @@ HTML = """
 <meta name="viewport"
 content="width=device-width, initial-scale=1.0">
 
-<title>Smart Farm</title>
+<title>Smart Farm System</title>
 
 <style>
+
+* {
+    box-sizing: border-box;
+}
 
 body {
     margin: 0;
     font-family: Arial, sans-serif;
     background: #101510;
     color: white;
-    text-align: center;
 }
 
 header {
     background: #1b5e20;
-    padding: 20px;
+    padding: 22px;
+    text-align: center;
+}
+
+header h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+header p {
+    margin: 8px 0 0;
 }
 
 .contenedor {
-    max-width: 900px;
-    margin: 20px auto;
+    max-width: 950px;
+    margin: auto;
     padding: 20px;
 }
 
 .tarjeta {
     background: #202820;
-    padding: 20px;
-    border-radius: 15px;
+    padding: 22px;
+    border-radius: 16px;
     margin-bottom: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+h2 {
+    margin-top: 0;
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
 }
 
 .dato {
-    font-size: 24px;
-    margin: 15px;
+    background: #293329;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.dato .icono {
+    font-size: 30px;
+}
+
+.dato .valor {
+    font-size: 25px;
+    font-weight: bold;
+    margin-top: 8px;
+}
+
+.botones {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
 }
 
 button {
-    padding: 12px 20px;
-    margin: 8px;
     border: none;
-    border-radius: 8px;
+    padding: 14px 20px;
+    border-radius: 10px;
     color: white;
     font-size: 16px;
+    font-weight: bold;
     cursor: pointer;
 }
 
-.automatico {
-    background: #388e3c;
-}
-
-.manual {
+.btn-auto {
     background: #1976d2;
 }
 
-.regar {
-    background: #009688;
+.btn-manual {
+    background: #7b1fa2;
 }
 
-.detener {
+.btn-regar {
+    background: #00897b;
+}
+
+.btn-detener {
     background: #c62828;
 }
 
+.btn-reactivar {
+    background: #388e3c;
+}
+
+button:hover {
+    opacity: 0.85;
+}
+
 .estado {
-    font-size: 20px;
-    margin: 15px;
+    text-align: center;
+    margin-top: 18px;
+    padding: 15px;
+    border-radius: 10px;
+    background: #293329;
+    font-size: 18px;
 }
 
 .verde {
-    color: #4caf50;
+    color: #66bb6a;
 }
 
 .rojo {
-    color: #ff5252;
+    color: #ef5350;
+}
+
+.amarillo {
+    color: #ffca28;
+}
+
+.azul {
+    color: #42a5f5;
+}
+
+.info {
+    text-align: center;
+    color: #bdbdbd;
+    font-size: 14px;
 }
 
 </style>
 
 </head>
 
-
 <body>
-
 
 <header>
 
@@ -137,93 +202,152 @@ button {
 
 
 <!-- =====================================================
-     SENSORES
-====================================================== -->
+     DATOS
+===================================================== -->
 
 <div class="tarjeta">
 
-<h2>📊 Datos del cultivo</h2>
+<h2>📊 Monitoreo del cultivo</h2>
+
+<div class="grid">
 
 <div class="dato">
-🌡️ Temperatura:
-<span id="temperatura">--</span> °C
+
+<div class="icono">🌡️</div>
+
+<div>Temperatura</div>
+
+<div class="valor" id="temperatura">
+-- °C
 </div>
+
+</div>
+
 
 <div class="dato">
-💧 Humedad ambiental:
-<span id="humedad">--</span> %
+
+<div class="icono">💧</div>
+
+<div>Humedad ambiente</div>
+
+<div class="valor" id="humedad">
+-- %
 </div>
+
+</div>
+
 
 <div class="dato">
-🌱 Humedad del suelo:
-<span id="suelo">--</span> %
+
+<div class="icono">🌱</div>
+
+<div>Humedad del suelo</div>
+
+<div class="valor" id="suelo">
+-- %
 </div>
+
+</div>
+
 
 <div class="dato">
-🚿 Bomba:
-<span id="riego">--</span>
+
+<div class="icono">🚰</div>
+
+<div>Bomba</div>
+
+<div class="valor" id="riego">
+APAGADA
 </div>
 
-<div class="estado">
-Estado:
-<span id="alerta">Esperando datos...</span>
+</div>
+
 </div>
 
 </div>
 
 
 <!-- =====================================================
-     CONTROL DEL RIEGO
-====================================================== -->
+     CONTROL
+===================================================== -->
 
 <div class="tarjeta">
 
-<h2>🚿 Control del riego</h2>
+<h2>🚰 Control del riego</h2>
 
-<p>
-Modo actual:
-<strong id="modo">--</strong>
-</p>
-
+<div class="botones">
 
 <button
-class="automatico"
+class="btn-auto"
 onclick="cambiarModo('automatico')">
 
-🤖 Modo automático
+🤖 Automático
 
 </button>
 
 
 <button
-class="manual"
+class="btn-manual"
 onclick="cambiarModo('manual')">
 
-👨‍🌾 Modo manual
+👨‍🌾 Manual
 
 </button>
 
 
-<br>
-
-
 <button
-class="regar"
+class="btn-regar"
 onclick="controlarRiego('encender')">
 
-💧 Regar ahora
+💧 Regar
 
 </button>
 
 
 <button
-class="detener"
+class="btn-detener"
 onclick="controlarRiego('apagar')">
 
-🛑 Detener riego
+🛑 Detener
 
 </button>
 
+
+<button
+class="btn-reactivar"
+onclick="reactivarAutomatico()">
+
+▶️ Reactivar automático
+
+</button>
+
+</div>
+
+
+<div class="estado" id="estado">
+
+Cargando estado...
+
+</div>
+
+</div>
+
+
+<div class="tarjeta">
+
+<h2>📢 Estado del sistema</h2>
+
+<div class="estado" id="alerta">
+
+Esperando información...
+
+</div>
+
+<p class="info">
+
+Los datos se actualizan automáticamente.
+
+</p>
 
 </div>
 
@@ -232,7 +356,6 @@ onclick="controlarRiego('apagar')">
 
 
 <script>
-
 
 // ========================================================
 // OBTENER DATOS
@@ -243,55 +366,95 @@ async function actualizarDatos() {
     try {
 
         const respuesta =
-            await fetch('/api/datos');
+            await fetch("/api/datos");
 
         const datos =
             await respuesta.json();
 
 
-        document.getElementById('temperatura')
-            .innerText =
-            datos.temperatura;
+        document.getElementById(
+            "temperatura"
+        ).innerText =
+            Number(datos.temperatura).toFixed(1)
+            + " °C";
 
 
-        document.getElementById('humedad')
-            .innerText =
-            datos.humedad;
+        document.getElementById(
+            "humedad"
+        ).innerText =
+            Number(datos.humedad).toFixed(1)
+            + " %";
 
 
-        document.getElementById('suelo')
-            .innerText =
-            datos.suelo;
+        document.getElementById(
+            "suelo"
+        ).innerText =
+            datos.suelo + " %";
 
 
-        document.getElementById('modo')
-            .innerText =
-            datos.modo;
+        const bomba =
+            document.getElementById("riego");
 
 
         if (datos.riego) {
 
-            document.getElementById('riego')
-                .innerHTML =
-                '<span class="verde">ENCENDIDA</span>';
+            bomba.innerText =
+                "ENCENDIDA";
+
+            bomba.className =
+                "valor verde";
 
         } else {
 
-            document.getElementById('riego')
-                .innerHTML =
-                '<span class="rojo">APAGADA</span>';
+            bomba.innerText =
+                "APAGADA";
 
+            bomba.className =
+                "valor rojo";
         }
 
 
-        document.getElementById('alerta')
-            .innerText =
+        let textoEstado =
+            "Modo: " + datos.modo;
+
+
+        if (datos.modo === "automatico") {
+
+            textoEstado =
+                "🤖 Modo automático";
+
+        } else {
+
+            textoEstado =
+                "👨‍🌾 Modo manual";
+        }
+
+
+        if (datos.automatico_pausado) {
+
+            textoEstado +=
+                " | ⏸️ Automático pausado";
+        }
+
+
+        document.getElementById(
+            "estado"
+        ).innerText =
+            textoEstado;
+
+
+        document.getElementById(
+            "alerta"
+        ).innerText =
             datos.alerta;
 
 
     } catch(error) {
 
-        console.log(error);
+        console.log(
+            "Error obteniendo datos:",
+            error
+        );
 
     }
 
@@ -307,24 +470,22 @@ async function cambiarModo(modo) {
     try {
 
         const respuesta =
-            await fetch('/api/riego', {
+            await fetch(
+                "/api/riego",
+                {
+                    method: "POST",
 
-                method: 'POST',
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                headers: {
-                    'Content-Type':
-                    'application/json'
-                },
-
-                body: JSON.stringify({
-
-                    accion: 'modo',
-
-                    modo: modo
-
-                })
-
-            });
+                    body: JSON.stringify({
+                        accion: "modo",
+                        modo: modo
+                    })
+                }
+            );
 
 
         const resultado =
@@ -333,14 +494,13 @@ async function cambiarModo(modo) {
 
         alert(resultado.mensaje);
 
-
         actualizarDatos();
 
 
     } catch(error) {
 
         alert(
-            'Error al cambiar el modo'
+            "Error de comunicación"
         );
 
     }
@@ -349,7 +509,7 @@ async function cambiarModo(modo) {
 
 
 // ========================================================
-// CONTROL DE BOMBA
+// REGAR / DETENER
 // ========================================================
 
 async function controlarRiego(accion) {
@@ -357,38 +517,43 @@ async function controlarRiego(accion) {
     try {
 
         const respuesta =
-            await fetch('/api/riego', {
+            await fetch(
+                "/api/riego",
+                {
+                    method: "POST",
 
-                method: 'POST',
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
 
-                headers: {
-                    'Content-Type':
-                    'application/json'
-                },
-
-                body: JSON.stringify({
-
-                    accion: accion
-
-                })
-
-            });
+                    body: JSON.stringify({
+                        accion: accion
+                    })
+                }
+            );
 
 
         const resultado =
             await respuesta.json();
 
 
-        alert(resultado.mensaje);
+        if (resultado.estado === "error") {
 
+            alert(
+                resultado.mensaje
+            );
 
-        actualizarDatos();
+        } else {
+
+            actualizarDatos();
+        }
 
 
     } catch(error) {
 
         alert(
-            'Error controlando el riego'
+            "Error de comunicación"
         );
 
     }
@@ -397,7 +562,54 @@ async function controlarRiego(accion) {
 
 
 // ========================================================
-// ACTUALIZAR AUTOMÁTICAMENTE
+// REACTIVAR AUTOMÁTICO
+// ========================================================
+
+async function reactivarAutomatico() {
+
+    try {
+
+        const respuesta =
+            await fetch(
+                "/api/riego",
+                {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type":
+                            "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        accion:
+                            "reactivar"
+                    })
+                }
+            );
+
+
+        const resultado =
+            await respuesta.json();
+
+
+        alert(resultado.mensaje);
+
+        actualizarDatos();
+
+
+    } catch(error) {
+
+        alert(
+            "Error de comunicación"
+        );
+
+    }
+
+}
+
+
+// ========================================================
+// ACTUALIZAR CADA 3 SEGUNDOS
 // ========================================================
 
 actualizarDatos();
@@ -407,9 +619,7 @@ setInterval(
     3000
 );
 
-
 </script>
-
 
 </body>
 
@@ -423,6 +633,7 @@ setInterval(
 
 @app.route("/")
 def inicio():
+
     return render_template_string(HTML)
 
 
@@ -432,6 +643,10 @@ def inicio():
 
 @app.route("/api/datos", methods=["GET"])
 def obtener_datos():
+
+    datos["automatico_pausado"] = \
+        orden_riego["automatico_pausado"]
+
     return jsonify(datos)
 
 
@@ -448,93 +663,162 @@ def controlar_riego():
     try:
 
         solicitud = request.get_json()
+
+        if not solicitud:
+
+            return jsonify({
+                "estado": "error",
+                "mensaje": "No se recibieron datos"
+            }), 400
+
         accion = solicitud.get("accion")
 
-        # ----------------------------------------------------
+
+        # ====================================================
         # CAMBIAR MODO
-        # ----------------------------------------------------
+        # ====================================================
 
         if accion == "modo":
 
             modo = solicitud.get("modo")
 
-            if modo not in ["automatico", "manual"]:
+
+            if modo not in [
+                "automatico",
+                "manual"
+            ]:
 
                 return jsonify({
                     "estado": "error",
                     "mensaje": "Modo no válido"
                 }), 400
 
+
             orden_riego["modo"] = modo
+
             datos["modo"] = modo
 
-            # Al cambiar de modo se apaga cualquier
-            # orden anterior de riego.
+            # Al cambiar de modo se reinicia la pausa
+            orden_riego["automatico_pausado"] = False
 
+            # Apagar bomba al cambiar de modo
             orden_riego["riego"] = False
+
             datos["riego"] = False
+
 
             if modo == "automatico":
 
-                datos["alerta"] = "🤖 Riego automático activado"
+                datos["alerta"] = \
+                    "🤖 Riego automático activado"
 
             else:
 
-                datos["alerta"] = "👨‍🌾 Riego manual activado"
+                datos["alerta"] = \
+                    "👨‍🌾 Riego manual activado"
+
 
             return jsonify({
                 "estado": "ok",
                 "mensaje": datos["alerta"]
             })
 
-        # ----------------------------------------------------
-        # ENCENDER BOMBA
-        # ----------------------------------------------------
+
+        # ====================================================
+        # ENCENDER / REGAR
+        # ====================================================
 
         if accion == "encender":
 
-            # Solo se permite encender manualmente
-            # cuando el sistema está en modo manual.
-
-            if orden_riego["modo"] != "manual":
-
-                return jsonify({
-                    "estado": "error",
-                    "mensaje": "Cambia primero a modo manual"
-                }), 400
-
+            # En cualquier modo se puede forzar el riego
             orden_riego["riego"] = True
+
             datos["riego"] = True
-            datos["alerta"] = "💧 Riego manual activado"
+
+            datos["alerta"] = \
+                "💧 Riego activado"
+
 
             return jsonify({
                 "estado": "ok",
                 "mensaje": "💧 Riego activado"
             })
 
-        # ----------------------------------------------------
-        # APAGAR BOMBA
-        # ----------------------------------------------------
+
+        # ====================================================
+        # DETENER
+        # ====================================================
 
         if accion == "apagar":
 
             orden_riego["riego"] = False
+
             datos["riego"] = False
-            datos["alerta"] = "🛑 Riego detenido"
+
+            # Si estaba en automático,
+            # lo dejamos pausado.
+
+            if orden_riego["modo"] == "automatico":
+
+                orden_riego[
+                    "automatico_pausado"
+                ] = True
+
+                datos["alerta"] = \
+                    "🛑 Riego detenido. Automático pausado"
+
+            else:
+
+                datos["alerta"] = \
+                    "🛑 Riego detenido"
+
 
             return jsonify({
                 "estado": "ok",
-                "mensaje": "🛑 Riego detenido"
+                "mensaje": datos["alerta"]
             })
 
-        # ----------------------------------------------------
+
+        # ====================================================
+        # REACTIVAR AUTOMÁTICO
+        # ====================================================
+
+        if accion == "reactivar":
+
+            orden_riego["modo"] = \
+                "automatico"
+
+            datos["modo"] = \
+                "automatico"
+
+            orden_riego[
+                "automatico_pausado"
+            ] = False
+
+            orden_riego["riego"] = False
+
+            datos["riego"] = False
+
+            datos["alerta"] = \
+                "▶️ Riego automático reactivado"
+
+
+            return jsonify({
+                "estado": "ok",
+                "mensaje":
+                    "▶️ Riego automático reactivado"
+            })
+
+
+        # ====================================================
         # ACCIÓN NO VÁLIDA
-        # ----------------------------------------------------
+        # ====================================================
 
         return jsonify({
             "estado": "error",
             "mensaje": "Acción no válida"
         }), 400
+
 
     except Exception as error:
 
@@ -567,27 +851,45 @@ def recibir_datos():
 
         nuevos_datos = request.get_json()
 
+
         if nuevos_datos:
 
             if "temperatura" in nuevos_datos:
-                datos["temperatura"] = nuevos_datos["temperatura"]
+
+                datos["temperatura"] = \
+                    nuevos_datos["temperatura"]
+
 
             if "humedad" in nuevos_datos:
-                datos["humedad"] = nuevos_datos["humedad"]
+
+                datos["humedad"] = \
+                    nuevos_datos["humedad"]
+
 
             if "suelo" in nuevos_datos:
-                datos["suelo"] = nuevos_datos["suelo"]
+
+                datos["suelo"] = \
+                    nuevos_datos["suelo"]
+
 
             if "riego" in nuevos_datos:
-                datos["riego"] = nuevos_datos["riego"]
 
-            if "alerta" in nuevos_datos:
-                datos["alerta"] = nuevos_datos["alerta"]
+                datos["riego"] = \
+                    nuevos_datos["riego"]
+
+
+            if "modo" in nuevos_datos:
+
+                datos["modo"] = \
+                    nuevos_datos["modo"]
+
 
         return jsonify({
             "estado": "ok",
-            "mensaje": "Datos recibidos correctamente"
+            "mensaje":
+                "Datos recibidos correctamente"
         })
+
 
     except Exception as error:
 
