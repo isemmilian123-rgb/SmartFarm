@@ -1,6 +1,8 @@
 from flask import Flask, render_template_string, jsonify, request
+from flask_socketio import SocketIO, emit, join_room
 
 app = Flask(__name__)
+socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ============================================================
 # DATOS DEL SISTEMA
@@ -1203,8 +1205,8 @@ def recibir_datos():
 # ============================================================
 
 if __name__ == "__main__":
-
-    app.run(
+    socketio.run(
+        app,
         host="0.0.0.0",
         port=5000,
         debug=False
