@@ -21,6 +21,8 @@ socketio = SocketIO(
     async_mode="threading"
 )
 
+imagen_anterior = None
+
 
 # ============================================================
 # DATOS DEL SISTEMA
