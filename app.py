@@ -1,10 +1,11 @@
+import base64
+import io
 import secrets
 import string
-import io
-import base64
 
 from flask import Flask, render_template_string, jsonify, request
 from flask_socketio import SocketIO, emit, join_room
+
 from PIL import Image, ImageChops, ImageStat
 
 
